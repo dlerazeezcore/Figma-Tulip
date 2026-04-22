@@ -1,20 +1,14 @@
 import UIKit
 import Capacitor
-import FirebaseCore
-import FirebaseMessaging
+import CapApp_SPM
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
-    private var latestApnsToken: Data?
-    private var latestFcmToken: String?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        if FirebaseApp.app() == nil, Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
-            FirebaseApp.configure()
-        }
-        Messaging.messaging().delegate = self
+        TulipFirebasePushBridge.configureIfAvailable()
         return true
     }
 
@@ -54,50 +48,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        latestApnsToken = deviceToken
-
-        guard FirebaseApp.app() != nil else {
-            NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
-            return
-        }
-
-        Messaging.messaging().apnsToken = deviceToken
-        Messaging.messaging().token { token, error in
-            if let error {
-                NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
-                return
-            }
-
-            if let token, !token.isEmpty {
-                self.latestFcmToken = token
-                NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
-                return
-            }
-
-            NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
-        }
+        TulipFirebasePushBridge.didRegisterForRemoteNotifications(deviceToken: deviceToken)
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
-    }
-
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard let fcmToken, !fcmToken.isEmpty else {
-            return
-        }
-
-        if latestFcmToken == fcmToken {
-            return
-        }
-
-        latestFcmToken = fcmToken
-
-        if let latestApnsToken {
-            Messaging.messaging().apnsToken = latestApnsToken
-        }
-
-        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: fcmToken)
+        TulipFirebasePushBridge.didFailToRegisterForRemoteNotifications(error: error)
     }
 
 }
