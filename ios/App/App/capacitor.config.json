@@ -1,0 +1,19 @@
+{
+	"appId": "com.theesim.app",
+	"appName": "Tulip Booking",
+	"webDir": "build",
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"PushNotificationsPlugin"
+	]
+}
