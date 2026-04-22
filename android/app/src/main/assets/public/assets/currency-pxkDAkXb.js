@@ -1,0 +1,1 @@
+import"./index-CL2ZGQyx.js";function p(r,t,o){const n=parseFloat(t)||1320,a=parseFloat(o)||0,e=r*(1+a/100)*n;return Math.round(e)}function s(r){return new Intl.NumberFormat("en-US").format(r)}export{p as c,s as f};

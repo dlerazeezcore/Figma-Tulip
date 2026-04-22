@@ -7,7 +7,7 @@
     "dev": "vite",
     "check:thin-pages": "node scripts/check-thin-pages.mjs",
     "build": "vite build",
-    "native:refresh": "npm run build && rm -rf ios/App/App/public/* android/app/src/main/assets/public/* && cp -R build/. ios/App/App/public/ && cp -R build/. android/app/src/main/assets/public/",
+    "native:refresh": "npm run build && rm -rf ios/App/App/public/* android/app/src/main/assets/public/* && cp -R build/. ios/App/App/public/ && cp -R build/. android/app/src/main/assets/public/ || true",
     "preview": "vite preview",
     "android:sync": "npm run native:refresh && npx cap sync android",
     "android:version:bump": "node scripts/bump-android-version.mjs",
