@@ -117,7 +117,7 @@ export function FlightResults() {
   return (
     <div className="min-h-dvh bg-gray-50 dark:bg-background">
       {/* Sticky Header with Search Summary */}
-      <header className="sticky top-0 z-20 bg-white dark:bg-card border-b border-gray-100 dark:border-border shadow-sm">
+      <header className="sticky top-0 z-20 bg-white dark:bg-card border-b border-gray-100 dark:border-border shadow-sm pt-[env(safe-area-inset-top)]">
         <div className="px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
              <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-muted transition-colors">

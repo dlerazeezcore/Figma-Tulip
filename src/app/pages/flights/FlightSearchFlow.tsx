@@ -46,16 +46,23 @@ export function FlightSearchFlow() {
   };
 
   return (
-    <div className="min-h-dvh bg-gray-50 dark:bg-background">
-      {/* Header */}
-      <header className="bg-white dark:bg-card border-b border-gray-100 dark:border-border px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate("/")} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-muted transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-        </button>
-        <h1 className="text-lg font-semibold tracking-tight">Search Flights</h1>
+    <div className="min-h-dvh bg-gradient-to-b from-gray-50 to-white dark:from-background dark:to-background pb-20">
+      {/* Header - Consistent with brand gradient */}
+      <header className="relative bg-gradient-to-br from-[#1967D2] via-[#1557B0] to-[#114A99] text-white px-6 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6 overflow-hidden texture-noise">
+        {/* Decorative Background Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 animate-pulse" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDuration: '3s', animationDelay: '0.5s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-56 h-56 bg-white/3 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+
+        <div className="relative z-10 flex items-center gap-3">
+          <button onClick={() => navigate("/")} className="p-2 -ml-2 rounded-full hover:bg-white/10 active:bg-white/20 transition-all text-white shadow-sm border border-transparent hover:border-white/20 active:scale-95">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-2xl font-semibold tracking-tight">Search Flights</h1>
+        </div>
       </header>
 
-      <main className="p-4">
+      <main className="p-4 mt-2">
         {/* Trip Type Toggle */}
         <div className="flex bg-gray-100 dark:bg-muted p-1 rounded-xl mb-6 shadow-inner relative max-w-[240px] mx-auto">
           {/* Animated background pill */}
