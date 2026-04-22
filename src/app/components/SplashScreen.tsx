@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plane, Hotel } from "lucide-react";
 import { EsimIcon } from "./EsimIcon";
-import tulipLogo from "../../imports/Tulipbooking-logo-full.svg";
+import tulipLogo from "../../imports/Tulipbooking_copy.svg";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -148,12 +148,12 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
               </div>
               
               {/* Circular logo container - matching product style */}
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-white to-blue-50 shadow-2xl flex items-center justify-center p-5 relative">
+              <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-white to-blue-50 shadow-2xl flex items-center justify-center p-0 relative">
                 {!logoFailed ? (
                   <img 
                     src={tulipLogo}
                     alt="Tulip" 
-                    className="w-full h-full object-contain drop-shadow-md"
+                    className="w-[85%] h-[85%] object-contain drop-shadow-md"
                     onError={() => setLogoFailed(true)}
                   />
                 ) : (
