@@ -26,7 +26,6 @@ dist-ssr
 # Output
 build/
 ios/App/App/public
-ios/App/CapApp-SPM
 android/app/src/main/assets/public
 android/app/build
 bin-debug
