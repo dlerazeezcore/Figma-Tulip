@@ -8,25 +8,18 @@ async function generate() {
   console.log('Generating native assets...');
 
   // 1. iOS AppIcon
-  // Goal: Use only the visible Tulip logo, scaled to 0.8 (819px), centered on 1024x1024 white canvas.
+  // Use solid white background and smaller logo size (approx 75%)
   const iosPath = 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png';
   const iosIconDir = path.dirname(iosPath);
   if (!fs.existsSync(iosIconDir)) fs.mkdirSync(iosIconDir, { recursive: true });
 
-  const iosTrimmedBuffer = await sharp(SVG_SOURCE)
-    .trim()
-    .toBuffer();
-
-  await sharp(iosTrimmedBuffer)
-    .resize(819, 819, { 
+  await sharp(SVG_SOURCE)
+    .resize(768, 768, { 
       fit: 'contain', 
-      background: { r: 255, g: 255, b: 255, alpha: 0 } 
+      background: '#FFFFFF' 
     })
     .extend({
-      top: 102,
-      bottom: 103,
-      left: 102,
-      right: 103,
+      top: 128, bottom: 128, left: 128, right: 128,
       background: '#FFFFFF'
     })
     .flatten({ background: '#FFFFFF' })
@@ -52,11 +45,7 @@ async function generate() {
     const legacySize = Math.floor(map.size * 0.65);
     const legacyPadding = Math.floor((map.size - legacySize) / 2);
 
-    const androidTrimmedBuffer = await sharp(SVG_SOURCE)
-      .trim()
-      .toBuffer();
-
-    await sharp(androidTrimmedBuffer)
+    await sharp(SVG_SOURCE)
       .resize(legacySize, legacySize, { fit: 'contain', background: '#FFFFFF' })
       .extend({
         top: legacyPadding,
@@ -69,7 +58,7 @@ async function generate() {
       .png()
       .toFile(path.join(dir, 'ic_launcher.png'));
     
-    await sharp(androidTrimmedBuffer)
+    await sharp(SVG_SOURCE)
       .resize(legacySize, legacySize, { fit: 'contain', background: '#FFFFFF' })
       .extend({
         top: legacyPadding,
@@ -110,11 +99,7 @@ async function generate() {
       // We'll use 62% of the box for the logo content for a clean, non-clipped look.
       const contentSize = Math.floor(map.size * 0.62);
       
-      const adaptiveTrimmedBuffer = await sharp(SVG_SOURCE)
-        .trim()
-        .toBuffer();
-
-      await sharp(adaptiveTrimmedBuffer)
+      await sharp(SVG_SOURCE)
         .resize(contentSize, contentSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
         .extend({
           top: Math.floor((map.size - contentSize) / 2),
