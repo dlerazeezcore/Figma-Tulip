@@ -1,7 +1,7 @@
 {
 	"appId": "com.theesim.app",
 	"appName": "Tulip Booking",
-	"webDir": "build",
+	"webDir": "dist",
 	"bundledWebRuntime": false,
 	"plugins": {
 		"PushNotifications": {
@@ -10,6 +10,17 @@
 				"sound",
 				"alert"
 			]
+		},
+		"SplashScreen": {
+			"launchShowDuration": 0,
+			"launchAutoHide": true,
+			"backgroundColor": "#ffffffff",
+			"androidSplashResourceName": "splash",
+			"androidScaleType": "CENTER_CROP",
+			"showSpinner": false,
+			"splashFullScreen": true,
+			"splashImmersive": true,
+			"useDialog": false
 		}
 	}
 }

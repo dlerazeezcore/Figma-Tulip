@@ -8,16 +8,18 @@ async function generate() {
   console.log('Generating native assets...');
 
   // 1. iOS AppIcon
-  // Use solid white background to avoid black background in iOS
+  // Use solid white background and smaller logo size (approx 75%)
   const iosPath = 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png';
   const iosIconDir = path.dirname(iosPath);
   if (!fs.existsSync(iosIconDir)) fs.mkdirSync(iosIconDir, { recursive: true });
 
   await sharp(SVG_SOURCE)
-    .trim()
-    .resize(920, 920, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+    .resize(768, 768, { 
+      fit: 'contain', 
+      background: '#FFFFFF' 
+    })
     .extend({
-      top: 52, bottom: 52, left: 52, right: 52,
+      top: 128, bottom: 128, left: 128, right: 128,
       background: '#FFFFFF'
     })
     .flatten({ background: '#FFFFFF' })
@@ -39,15 +41,17 @@ async function generate() {
     const dir = `android/app/src/main/res/mipmap-${map.name}`;
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    // Legacy Icons (Solid background white)
+    // Legacy Icons (Solid background white, approx 65% logo)
+    const legacySize = Math.floor(map.size * 0.65);
+    const legacyPadding = Math.floor((map.size - legacySize) / 2);
+
     await sharp(SVG_SOURCE)
-      .trim()
-      .resize(Math.floor(map.size * 0.9), Math.floor(map.size * 0.9), { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .resize(legacySize, legacySize, { fit: 'contain', background: '#FFFFFF' })
       .extend({
-        top: Math.floor(map.size * 0.05),
-        bottom: Math.ceil(map.size * 0.05),
-        left: Math.floor(map.size * 0.05),
-        right: Math.ceil(map.size * 0.05),
+        top: legacyPadding,
+        bottom: map.size - legacySize - legacyPadding,
+        left: legacyPadding,
+        right: map.size - legacySize - legacyPadding,
         background: '#FFFFFF'
       })
       .flatten({ background: '#FFFFFF' })
@@ -55,13 +59,12 @@ async function generate() {
       .toFile(path.join(dir, 'ic_launcher.png'));
     
     await sharp(SVG_SOURCE)
-      .trim()
-      .resize(Math.floor(map.size * 0.9), Math.floor(map.size * 0.9), { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .resize(legacySize, legacySize, { fit: 'contain', background: '#FFFFFF' })
       .extend({
-        top: Math.floor(map.size * 0.05),
-        bottom: Math.ceil(map.size * 0.05),
-        left: Math.floor(map.size * 0.05),
-        right: Math.ceil(map.size * 0.05),
+        top: legacyPadding,
+        bottom: map.size - legacySize - legacyPadding,
+        left: legacyPadding,
+        right: map.size - legacySize - legacyPadding,
         background: '#FFFFFF'
       })
       .flatten({ background: '#FFFFFF' })
@@ -93,19 +96,17 @@ async function generate() {
       
       // Icon should be centered in 108dp box. 
       // Safe zone is 66dp of 108dp (approx 61%).
-      // We'll use 78% of the box for the logo content to make it "bigger", 
-      // but warn that it might be slightly clipped on some mask shapes.
-      const contentSize = Math.floor(map.size * 0.78);
+      // We'll use 62% of the box for the logo content for a clean, non-clipped look.
+      const contentSize = Math.floor(map.size * 0.62);
       
       await sharp(SVG_SOURCE)
-        .trim()
-        .resize(contentSize, contentSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .resize(contentSize, contentSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
         .extend({
           top: Math.floor((map.size - contentSize) / 2),
           bottom: Math.ceil((map.size - contentSize) / 2),
           left: Math.floor((map.size - contentSize) / 2),
           right: Math.ceil((map.size - contentSize) / 2),
-          background: { r: 0, g: 0, b: 0, alpha: 0 }
+          background: { r: 255, g: 255, b: 255, alpha: 0 }
         })
         .png()
         .toFile(foregroundPath);
