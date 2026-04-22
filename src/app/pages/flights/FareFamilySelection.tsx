@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
-import { ArrowLeft, Check, Info, AlertCircle, X } from "lucide-react";
+import { ArrowLeft, Check, Info, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useCurrency } from "../../utils/currency";
 
 // Mock data to match previous
@@ -58,7 +59,9 @@ export function FareFamilySelection() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { t } = useTranslation();
   const { formatPrice } = useCurrency();
+  const isRTL = document.documentElement.dir === 'rtl';
   
   const { tripType, phase = "outbound", origin, destination } = location.state || {};
   const isReturnPhase = phase === "return";
@@ -102,26 +105,26 @@ export function FareFamilySelection() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white dark:bg-card border-b border-gray-100 dark:border-border shadow-sm">
         <div className="px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-muted transition-colors">
-            <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          <button onClick={() => navigate(-1)} className="p-2 -ms-2 rounded-full hover:bg-gray-100 dark:hover:bg-muted transition-colors">
+            {isRTL ? <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" /> : <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
           </button>
-          <div>
-            <h1 className="text-base font-semibold tracking-tight">Select Fare</h1>
+          <div className="text-start">
+            <h1 className="text-base font-semibold tracking-tight">{t("Select Fare")}</h1>
             <p className="text-xs text-gray-500 font-medium">{displayOrigin?.code || "EBL"} → {displayDest?.code || "DUS"} • {currentFlightMockData.airlineName}</p>
           </div>
         </div>
         {tripType === "roundtrip" && (
           <div className="bg-blue-50 dark:bg-blue-900/20 px-4 py-2 border-b border-blue-100 dark:border-blue-900/40 flex justify-between items-center">
              <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-                {phase === "outbound" ? "Step 1 of 2: Outbound" : "Step 2 of 2: Return"}
+                {phase === "outbound" ? t("Step 1 of 2: Outbound") : t("Step 2 of 2: Return")}
              </span>
           </div>
         )}
       </header>
 
       <main className="p-4 space-y-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium px-1 mb-2">
-          {currentFlightMockData.airlineName} offers multiple fare options for this flight. Choose the one that fits your needs.
+        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium px-1 mb-2 text-start">
+          {t("airline_fare_options", { airline: currentFlightMockData.airlineName })}
         </p>
 
         <div className="space-y-4">
@@ -138,20 +141,20 @@ export function FareFamilySelection() {
               >
                 {/* Recommendation Badge */}
                 {fare.isRecommended && (
-                  <div className="absolute -top-3 right-5 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full shadow-sm">
-                    Most Popular
+                  <div className={`absolute -top-3 ${isRTL ? 'left-5' : 'right-5'} bg-gradient-to-r from-blue-600 to-blue-500 text-white text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full shadow-sm`}>
+                    {t("Most Popular")}
                   </div>
                 )}
 
                 {/* Header Row */}
                 <div className="flex justify-between items-start mb-4">
-                  <div>
+                  <div className="text-start">
                     <h2 className={`text-xl font-bold tracking-tight mb-1 ${isSelected ? "text-[#1967D2] dark:text-[#5e96f2]" : "text-gray-900 dark:text-white"}`}>
-                      {fare.tierName}
+                      {t(fare.tierName)}
                     </h2>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-0.5">Total</p>
+                  <div className="text-end">
+                    <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-0.5">{t("Total")}</p>
                     <p className="text-xl font-extrabold text-gray-900 dark:text-white">{formatPrice(fare.price)}</p>
                   </div>
                 </div>
@@ -167,8 +170,8 @@ export function FareFamilySelection() {
                           <X className="w-4 h-4 text-gray-300 dark:text-gray-600" strokeWidth={3} />
                         </div>
                       )}
-                      <span className={`text-sm font-medium ${b.included ? "text-gray-700 dark:text-gray-300" : "text-gray-400 dark:text-gray-500 line-through decoration-gray-300 dark:decoration-gray-600"}`}>
-                        {b.description}
+                      <span className={`text-sm font-medium text-start ${b.included ? "text-gray-700 dark:text-gray-300" : "text-gray-400 dark:text-gray-500 line-through decoration-gray-300 dark:decoration-gray-600"}`}>
+                        {t(b.description)}
                       </span>
                     </div>
                   ))}
@@ -178,11 +181,11 @@ export function FareFamilySelection() {
                 {fare.restrictions.length > 0 && (
                   <div className="pt-3 border-t border-gray-100 dark:border-border/60">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                      <AlertCircle className="w-3.5 h-3.5" /> Restrictions
+                      <AlertCircle className="w-3.5 h-3.5" /> {t("Restrictions")}
                     </div>
                     {fare.restrictions.map((r, i) => (
-                      <p key={i} className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1 leading-snug tracking-tight">
-                        • {r}
+                      <p key={i} className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1 leading-snug tracking-tight text-start">
+                        • {t(r)}
                       </p>
                     ))}
                   </div>
@@ -193,7 +196,7 @@ export function FareFamilySelection() {
                   mt-4 w-full py-2.5 rounded-xl font-semibold text-sm text-center transition-colors
                   ${isSelected ? "bg-blue-50 text-[#1967D2] dark:bg-blue-900/30 dark:text-blue-300" : "bg-gray-50 text-gray-600 dark:bg-muted dark:text-gray-300"}
                 `}>
-                  {isSelected ? "Selected" : "Select this fare"}
+                  {isSelected ? t("Selected") : t("Select this fare")}
                 </div>
               </div>
             );
@@ -209,7 +212,7 @@ export function FareFamilySelection() {
             onClick={handleContinue}
             className="w-full bg-[#1967D2] text-white rounded-xl py-3.5 font-semibold text-lg hover:bg-[#1557B0] active:scale-[0.98] transition-all disabled:opacity-50 disabled:bg-gray-400 shadow-lg shadow-blue-500/20"
           >
-            {isRoundTripOutbound ? "Continue to Return Flight" : "Continue to Summary"}
+            {isRoundTripOutbound ? t("Continue to Return Flight") : t("Continue to Summary")}
           </button>
         </div>
       </div>

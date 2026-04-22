@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { PlaneTakeoff, PlaneLanding, Calendar, User, ArrowRightLeft, ArrowLeft, Armchair } from "lucide-react";
+import { PlaneTakeoff, PlaneLanding, Calendar, User, ArrowRightLeft, ArrowLeft, Armchair, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card } from "../../components/ui/card";
 import { AirportSelector } from "../../components/flights/AirportSelector";
@@ -57,8 +57,8 @@ export function FlightSearchFlow() {
         <div className="absolute top-1/2 left-1/2 w-56 h-56 bg-white/3 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
 
         <div className="relative z-10 flex items-center gap-3">
-          <button onClick={() => navigate("/")} className="p-2 -ml-2 rounded-full hover:bg-white/10 active:bg-white/20 transition-all text-white shadow-sm border border-transparent hover:border-white/20 active:scale-95">
-            <ArrowLeft className="w-6 h-6" />
+          <button onClick={() => navigate("/")} className="p-2 -ms-2 rounded-full hover:bg-white/10 active:bg-white/20 transition-all text-white shadow-sm border border-transparent hover:border-white/20 active:scale-95">
+            {document.documentElement.dir === 'rtl' ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
           </button>
           <h1 className="text-2xl font-semibold tracking-tight">{t("Search Flights")}</h1>
         </div>
@@ -69,8 +69,14 @@ export function FlightSearchFlow() {
         <div className="flex bg-gray-100 dark:bg-muted p-1 rounded-xl mb-6 shadow-inner relative max-w-[240px] mx-auto">
           {/* Animated background pill */}
           <div 
-            className="absolute left-1 top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-card rounded-lg shadow-sm transition-transform duration-300 ease-out"
-            style={{ transform: tripType === "roundtrip" ? "translateX(100%)" : "translateX(0)" }}
+            className="absolute inset-y-1 w-[calc(50%-4px)] bg-white dark:bg-card rounded-lg shadow-sm transition-all duration-300 ease-out"
+            style={{ 
+              left: document.documentElement.dir === 'rtl' ? 'auto' : '4px',
+              right: document.documentElement.dir === 'rtl' ? '4px' : 'auto',
+              transform: tripType === "roundtrip" 
+                ? (document.documentElement.dir === 'rtl' ? "translateX(-100%)" : "translateX(100%)") 
+                : "translateX(0)" 
+            }}
           />
           <button 
             className={`flex-1 relative z-10 py-1.5 text-sm font-medium transition-colors ${tripType === "oneway" ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
@@ -97,7 +103,7 @@ export function FlightSearchFlow() {
               <div>
                 <p className="text-xs text-gray-500 font-medium mb-0.5">{t("From")}</p>
                 {origin ? (
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{origin.city} <span className="text-gray-400 font-medium text-sm ml-1">{origin.code}</span></p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{origin.city} <span className="text-gray-400 font-medium text-sm ms-1">{origin.code}</span></p>
                 ) : (
                   <p className="text-lg font-semibold text-gray-400 dark:text-gray-500">{t("Select city or airport")}</p>
                 )}
@@ -105,14 +111,14 @@ export function FlightSearchFlow() {
             </div>
 
             {/* Swap Button */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
+            <div className={`absolute ${document.documentElement.dir === 'rtl' ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 z-10`}>
               <button onClick={handleSwap} className="bg-white dark:bg-card border border-gray-200 dark:border-border p-2 rounded-full shadow-sm hover:shadow-md transition-all active:scale-95 text-primary">
                 <ArrowRightLeft className="w-4 h-4" />
               </button>
             </div>
 
             {/* Divider Line */}
-            <div className="ml-9 border-l-2 border-dashed border-gray-200 dark:border-border h-4 my-1" />
+            <div className="ms-9 border-s-2 border-dashed border-gray-200 dark:border-border h-4 my-1" />
 
             {/* Destination */}
             <div className="flex items-center gap-4 group cursor-pointer" onClick={() => setActiveSheet("destination")}>
@@ -120,7 +126,7 @@ export function FlightSearchFlow() {
               <div>
                 <p className="text-xs text-gray-500 font-medium mb-0.5">{t("To")}</p>
                 {destination ? (
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{destination.city} <span className="text-gray-400 font-medium text-sm ml-1">{destination.code}</span></p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{destination.city} <span className="text-gray-400 font-medium text-sm ms-1">{destination.code}</span></p>
                 ) : (
                   <p className="text-lg font-semibold text-gray-400 dark:text-gray-500">{t("Select destination")}</p>
                 )}
@@ -131,7 +137,7 @@ export function FlightSearchFlow() {
           {/* Dates section */}
           <div className="flex border-b border-gray-100 dark:border-border">
             <div 
-              className={`flex-1 px-4 py-3 flex items-center gap-4 cursor-pointer group ${tripType === "roundtrip" ? "border-r border-gray-100 dark:border-border" : ""}`}
+              className={`flex-1 px-4 py-3 flex items-center gap-4 cursor-pointer group ${tripType === "roundtrip" ? "border-e border-gray-100 dark:border-border" : ""}`}
               onClick={() => setActiveSheet("dates")}
             >
               <Calendar className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors shrink-0" />
@@ -148,7 +154,7 @@ export function FlightSearchFlow() {
                 className="flex-1 px-4 py-3 flex items-center gap-4 cursor-pointer group"
                 onClick={() => setActiveSheet("dates")}
               >
-                <div className="min-w-0 pl-1">
+                <div className="min-w-0 ps-1">
                   <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Return")}</p>
                   <p className={`text-base font-semibold truncate ${dateRange?.to ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}`}>
                     {dateRange?.to ? format(dateRange.to, "EEE, d MMM") : t("Add date")}
@@ -161,11 +167,11 @@ export function FlightSearchFlow() {
           {/* Passengers & Cabin section */}
           <div className="flex">
             <div 
-              className="flex-1 px-4 py-3 border-r border-gray-100 dark:border-border flex items-center gap-3 cursor-pointer group"
+              className="flex-1 px-4 py-3 border-e border-gray-100 dark:border-border flex items-center gap-3 cursor-pointer group"
               onClick={() => setActiveSheet("passengers")}
             >
               <User className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors shrink-0" />
-              <div className="min-w-0 pl-1">
+              <div className="min-w-0 ps-1">
                 <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Passengers")}</p>
                 <p className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {totalPassengers}
@@ -178,7 +184,7 @@ export function FlightSearchFlow() {
               onClick={() => setActiveSheet("cabin")}
             >
               <Armchair className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors shrink-0" />
-              <div className="min-w-0 pl-1">
+              <div className="min-w-0 ps-1">
                 <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Cabin")}</p>
                 <p className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {t(cabin)}

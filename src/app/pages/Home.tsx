@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Bell, Globe, Signal, CreditCard, Plane, Building2, ChevronRight } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
@@ -24,6 +25,7 @@ function formatDataLabelFromMb(valueMb: number): string {
 
 export function Home() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const {
     activeEsim,
     dataPercentage,
@@ -58,9 +60,9 @@ export function Home() {
           <div className="flex justify-between items-start mb-6">
             <div>
               <h1 className="text-2xl mb-1 tracking-tight">
-                {welcomeName ? `Hey ${welcomeName}!` : "Hey there!"}
+                {welcomeName ? t("Hey {{name}}!", { name: welcomeName }) : t("Hey there!")}
               </h1>
-              <p className="text-sm text-white/95 font-medium">Your world awaits—stay connected anywhere</p>
+              <p className="text-sm text-white/95 font-medium">{t("Your world awaits—stay connected anywhere")}</p>
             </div>
             <button className="p-2.5 rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-black/5 border border-white/20">
               <Bell className="w-5 h-5" />
@@ -76,7 +78,7 @@ export function Home() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Signal className="w-4 h-4" />
-                    <span className="text-xs opacity-90 font-medium">Active</span>
+                    <span className="text-xs opacity-90 font-medium">{t("Active")}</span>
                   </div>
                   <h3 className="text-lg mb-0.5 font-semibold tracking-tight">{activeEsim.name}</h3>
                   <p className="text-sm opacity-90 flex items-center gap-1 font-medium">
@@ -93,7 +95,7 @@ export function Home() {
               <div className="relative space-y-3">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="opacity-90 font-medium">Remaining data</span>
+                    <span className="opacity-90 font-medium">{t("Remaining data")}</span>
                     <span className="font-semibold">
                       {activeEsim.dataTotal > 0
                         ? formatDataLabelFromMb(activeEsim.dataRemaining)
@@ -109,8 +111,8 @@ export function Home() {
                 </div>
 
                 <div className="flex justify-between text-sm pt-1 border-t border-white/20">
-                  <span className="opacity-90 font-medium">Valid for</span>
-                  <span className="font-semibold">{activeEsim.daysLeft} days remaining</span>
+                  <span className="opacity-90 font-medium">{t("Valid for")}</span>
+                  <span className="font-semibold">{t("{{count}} days remaining", { count: activeEsim.daysLeft })}</span>
                 </div>
               </div>
             </Card>
@@ -122,8 +124,8 @@ export function Home() {
         {/* Our Services Section - Compact & Professional */}
         <section>
           <div className="mb-4">
-            <h2 className="mb-1 dark:text-foreground">Explore Services</h2>
-            <p className="text-sm text-muted-foreground">Seamless travel solutions</p>
+            <h2 className="mb-1 dark:text-foreground">{t("Explore Services")}</h2>
+            <p className="text-sm text-muted-foreground">{t("Seamless travel solutions")}</p>
           </div>
           
           {/* All Services - Vertical Stack */}
@@ -142,9 +144,9 @@ export function Home() {
                       <CreditCard className="w-7 h-7 text-white" strokeWidth={2.5} />
                     </div>
                   </div>
-                  <div className="flex-1 text-left min-w-0">
-                    <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5 tracking-tight">eSIM Plans</h3>
-                    <p className="text-xs text-gray-600 dark:text-muted-foreground font-medium">Browse global data plans</p>
+                  <div className="flex-1 text-start min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5 tracking-tight">{t("eSIM Plans")}</h3>
+                    <p className="text-xs text-gray-600 dark:text-muted-foreground font-medium">{t("Browse global data plans")}</p>
                   </div>
                   <div className="flex-shrink-0">
                     <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -167,9 +169,9 @@ export function Home() {
                       <Plane className="w-7 h-7 text-white" strokeWidth={2.5} />
                     </div>
                   </div>
-                  <div className="flex-1 text-left min-w-0">
-                    <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5 tracking-tight">Flights</h3>
-                    <p className="text-xs text-gray-600 dark:text-muted-foreground font-medium">Book your next adventure</p>
+                  <div className="flex-1 text-start min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5 tracking-tight">{t("Flights")}</h3>
+                    <p className="text-xs text-gray-600 dark:text-muted-foreground font-medium">{t("Book your next adventure")}</p>
                   </div>
                   <div className="flex-shrink-0">
                     <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -192,13 +194,13 @@ export function Home() {
                       <Building2 className="w-7 h-7 text-white" strokeWidth={2.5} />
                     </div>
                   </div>
-                  <div className="flex-1 text-left min-w-0">
-                    <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5 tracking-tight">Hotels</h3>
-                    <p className="text-xs text-gray-600 dark:text-muted-foreground font-medium">Find perfect accommodations</p>
+                  <div className="flex-1 text-start min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5 tracking-tight">{t("Hotels")}</h3>
+                    <p className="text-xs text-gray-600 dark:text-muted-foreground font-medium">{t("Find perfect accommodations")}</p>
                   </div>
                   <div className="flex-shrink-0">
                     <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-50 to-blue-100/80 dark:from-blue-900/20 dark:to-blue-900/40 border border-blue-200/60 dark:border-blue-800/40 shadow-sm">
-                      <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-400">Soon</span>
+                      <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-400">{t("Soon")}</span>
                     </div>
                   </div>
                 </div>

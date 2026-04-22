@@ -15,6 +15,7 @@ import {
 export function Plans() {
   const { t } = useTranslation();
   const { formatPrice, currency: selectedCurrency } = useCurrency();
+  const isRTL = document.documentElement.dir === 'rtl';
   const {
     searchQuery,
     selectedDestination,
@@ -58,16 +59,16 @@ export function Plans() {
       : filteredDestinations;
 
   const sectionTitle = isSearching
-    ? "Search Results"
+    ? t("Search Results")
     : explicitTab === "popular"
-      ? "Popular Destinations"
+      ? t("Popular Destinations")
       : explicitTab === "countries"
-        ? "All Countries"
-        : "All Regions";
+        ? t("All Countries")
+        : t("All Regions");
 
   const sectionCount = isLoadingDestinations
-    ? "Loading..."
-    : `${destinationsToShow.length} ${isSearching ? "found" : explicitTab === "popular" ? "destinations" : explicitTab === "countries" ? "countries" : "regions"}`;
+    ? t("Loading...")
+    : `${destinationsToShow.length} ${isSearching ? t("found") : explicitTab === "popular" ? t("destinations") : explicitTab === "countries" ? t("countries") : t("regions")}`;
 
   // Assign different destination images based on index
   const destinationImages = [
@@ -107,12 +108,12 @@ export function Plans() {
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDuration: '3s', animationDelay: '0.5s' }}></div>
           <div className="absolute top-1/2 left-1/2 w-56 h-56 bg-white/3 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
 
-          <div className="relative z-10">
-            <button onClick={clearSelectedDestination} className="mb-6 -ml-2 p-2.5 rounded-lg hover:bg-white/15 active:bg-white/20 transition-all backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 active:scale-95">
-              <ChevronLeft className="w-6 h-6" />
+          <div className="relative z-10 text-start">
+            <button onClick={clearSelectedDestination} className="mb-6 -ms-2 p-2.5 rounded-lg hover:bg-white/15 active:bg-white/20 transition-all backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 active:scale-95">
+              {isRTL ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
             </button>
 
-            <h1 className="text-2xl mb-6 tracking-tight">Available plans</h1>
+            <h1 className="text-2xl mb-6 tracking-tight font-bold">{t("Available plans")}</h1>
 
             <Card className="relative overflow-hidden border-0 shadow-[0_8px_24px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.08)] bg-white dark:bg-card">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent dark:from-blue-500/5 dark:via-purple-500/0"></div>
@@ -126,7 +127,7 @@ export function Plans() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-lg mb-0.5 tracking-tight dark:text-foreground">{selectedDestination.name}</h3>
-                  <p className="text-sm text-muted-foreground font-medium">Choose your data plan</p>
+                  <p className="text-sm text-muted-foreground font-medium">{t("Choose your data plan")}</p>
                   {selectedDestination.type === "regional" && allIncludedCountries.length > 0 && (
                     <button
                       type="button"
@@ -137,8 +138,8 @@ export function Plans() {
                       }}
                     >
                       <Globe className="w-3.5 h-3.5" />
-                      {allIncludedCountries.length} {allIncludedCountries.length === 1 ? "country" : "countries"} included
-                      <ChevronRight className="w-3 h-3" />
+                      {t('countries_included', { count: allIncludedCountries.length })}
+                      {isRTL ? <ChevronLeft className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                     </button>
                   )}
                 </div>
@@ -150,11 +151,11 @@ export function Plans() {
         <div className="px-6 space-y-6 mt-2">
           {isLoadingBundles ? (
             <Card className="p-8 text-center bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border">
-              <p className="text-muted-foreground">Loading bundles...</p>
+              <p className="text-muted-foreground">{t("Loading plans...")}</p>
             </Card>
           ) : groupedBundles.length === 0 ? (
             <Card className="p-8 text-center bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border">
-              <p className="text-muted-foreground">No offers found</p>
+              <p className="text-muted-foreground">{t("No offers found")}</p>
             </Card>
           ) : (
             <RadioGroup value={selectedBundleId} onValueChange={setSelectedBundleId}>
@@ -163,7 +164,7 @@ export function Plans() {
                   <div className="flex items-center gap-2 mb-3">
                     <div className="h-0.5 w-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
                     <h3 className="text-sm font-medium text-gray-900 dark:text-foreground">
-                      {group.validity} Day{group.validity > 1 ? "s" : ""}
+                      {t('validity_days', { count: group.validity })}
                     </h3>
                   </div>
                   {group.offers.map((bundle) => {
@@ -174,7 +175,7 @@ export function Plans() {
                         htmlFor={`plan-${bundle.id}`}
                         className={`
                           relative flex items-center gap-4 p-5 bg-white dark:bg-card rounded-2xl cursor-pointer 
-                          transition-all duration-200 shadow-sm overflow-hidden
+                          transition-all duration-200 shadow-sm overflow-hidden text-start
                           ${isSelected 
                             ? 'border-2 border-primary shadow-xl ring-4 ring-primary/10' 
                             : 'border-2 border-gray-100 dark:border-border hover:border-gray-200 dark:hover:border-accent hover:shadow-lg hover:scale-[1.01]'
@@ -182,7 +183,7 @@ export function Plans() {
                         `}
                       >
                         {isSelected && (
-                          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-bl-full"></div>
+                          <div className={`absolute top-0 ${isRTL ? 'left-0' : 'right-0'} w-20 h-20 bg-gradient-to-br from-primary/20 to-purple-500/20 ${isRTL ? 'rounded-br-full' : 'rounded-bl-full'}`}></div>
                         )}
                         <RadioGroupItem value={bundle.id} id={`plan-${bundle.id}`} className="relative z-10 flex-shrink-0" />
                         <div className="flex-1 min-w-0 relative z-10">
@@ -191,16 +192,16 @@ export function Plans() {
                               <div className="text-lg font-semibold mb-1.5 text-gray-900 dark:text-foreground">{bundle.dataLabel}</div>
                               {bundle.isPerDay && (
                                 <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 dark:text-blue-200 text-blue-900">
-                                  Daily allowance
+                                  {t("Daily allowance")}
                                 </span>
                               )}
                             </div>
-                            <div className="text-right flex-shrink-0">
+                            <div className="text-end flex-shrink-0">
                               <div className="text-xl font-bold text-gray-900 dark:text-foreground whitespace-nowrap mb-0.5">
                                 {formatPrice(bundle.price)}
                               </div>
                               {isSelected && (
-                                <span className="text-xs text-primary font-medium">Selected</span>
+                                <span className="text-xs text-primary font-medium">{t("Selected")}</span>
                               )}
                             </div>
                           </div>
@@ -245,7 +246,7 @@ export function Plans() {
               disabled={!selectedBundleId}
               onClick={handleContinue}
             >
-              Continue to Checkout
+              {t("Continue to Checkout")}
             </Button>
           </div>
         </div>
@@ -274,23 +275,23 @@ export function Plans() {
   // --- DESTINATION LIST VIEW ---
   return (
     <div className="min-h-full bg-gradient-to-b from-gray-50 to-white dark:from-background dark:to-background pb-6">
-      <header className="relative bg-gradient-to-br from-[#1967D2] via-[#1557B0] to-[#114A99] text-white px-6 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6 overflow-hidden texture-noise">
+      <header className="relative bg-gradient-to-br from-[#1967D2] via-[#1557B0] to-[#114A99] text-white px-6 pt-[calc(env(safe-area-inset-top)+1rem)] pb-6 overflow-hidden texture-noise text-start">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 animate-pulse" style={{ animationDuration: '4s' }}></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDuration: '3s', animationDelay: '0.5s' }}></div>
         <div className="absolute top-1/2 left-1/2 w-56 h-56 bg-white/3 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
 
         <div className="relative z-10">
-          <h1 className="text-2xl mb-2 tracking-tight">Browse eSIM Plans</h1>
-          <p className="text-sm text-white/95 mb-6 font-medium">Discover the perfect plan for your travels</p>
+          <h1 className="text-2xl mb-2 tracking-tight font-bold">{t("Browse eSIM Plans")}</h1>
+          <p className="text-sm text-white/95 mb-6 font-medium">{t("Discover the perfect plan for your travels")}</p>
 
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/70" />
+            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/70`} />
             <Input
               type="text"
-              placeholder="Search country name..."
+              placeholder={t("Search country name...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white placeholder:text-white/70 focus:bg-white/25 focus:border-white/50 shadow-lg transition-all"
+              className={`${isRTL ? 'pr-12' : 'pl-12'} h-12 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white placeholder:text-white/70 focus:bg-white/25 focus:border-white/50 shadow-lg transition-all text-start`}
             />
           </div>
         </div>
@@ -307,7 +308,7 @@ export function Plans() {
                 : "text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground hover:bg-white/50 dark:hover:bg-accent/50"
             }`}
           >
-            Countries
+            {t("Countries")}
           </button>
           <button
             onClick={() => handleTabChange("regions")}
@@ -317,28 +318,28 @@ export function Plans() {
                 : "text-gray-600 dark:text-muted-foreground hover:text-gray-900 dark:hover:text-foreground hover:bg-white/50 dark:hover:bg-accent/50"
             }`}
           >
-            Regions
+            {t("Regions")}
           </button>
         </div>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 text-start">
           <div>
-            <h2 className="text-lg mb-1 tracking-tight dark:text-foreground">{sectionTitle}</h2>
+            <h2 className="text-lg mb-1 tracking-tight dark:text-foreground font-bold">{sectionTitle}</h2>
             <p className="text-xs text-muted-foreground font-medium">
               {sectionCount}
             </p>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 text-start">
           {isLoadingDestinations ? (
             <Card className="p-8 text-center bg-white dark:bg-card shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-border">
-              <p className="text-muted-foreground font-medium">Loading destinations...</p>
+              <p className="text-muted-foreground font-medium">{t("Loading destinations...")}</p>
             </Card>
           ) : destinationsToShow.length === 0 ? (
             <Card className="p-8 text-center bg-white dark:bg-card shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-border">
               <p className="text-muted-foreground font-medium">
-                {isSearching ? "No destinations found matching your search" : "No popular destinations available"}
+                {isSearching ? t("No destinations found matching your search") : t("No popular destinations available")}
               </p>
             </Card>
           ) : (
@@ -350,7 +351,7 @@ export function Plans() {
                 <button
                   key={`${destination.type}-${destination.code}`}
                   onClick={() => selectDestination(destination)}
-                  className="w-full text-left group"
+                  className="w-full text-start group"
                 >
                   <Card className="relative overflow-hidden border-0 shadow-[0_4px_12px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.15),0_4px_8px_rgba(0,0,0,0.08)] transition-all duration-300 active:scale-[0.98]">
                     {/* Background Image with enhanced rendering */}
@@ -379,14 +380,14 @@ export function Plans() {
                         <h3 className="font-semibold text-white mb-1 text-base tracking-tight drop-shadow-lg">{destination.name}</h3>
                         {preview.plansCount > 0 ? (
                           <p className="text-sm text-white/95 font-medium drop-shadow-md">
-                            From {formatPrice(preview.priceFrom)}
+                            {t("From")} {formatPrice(preview.priceFrom)}
                           </p>
                         ) : (
-                          <p className="text-sm text-white/95 font-medium drop-shadow-md">Plans available</p>
+                          <p className="text-sm text-white/95 font-medium drop-shadow-md">{t("Plans available")}</p>
                         )}
                       </div>
                       <div className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center group-hover:bg-white/25 group-hover:scale-110 transition-all shadow-lg">
-                        <Zap className="w-5 h-5 text-white drop-shadow-md" strokeWidth={2.5} />
+                        <Zap className={`w-5 h-5 text-white drop-shadow-md ${isRTL ? '-scale-x-100' : ''}`} strokeWidth={2.5} />
                       </div>
                     </div>
                   </Card>
@@ -420,6 +421,7 @@ function IncludedCountriesSheet({
   onSearchChange: (value: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const filtered = countries.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase().trim()),
   );
@@ -437,13 +439,13 @@ function IncludedCountriesSheet({
         </div>
 
         {/* Header */}
-        <div className="px-6 pb-4 pt-2 border-b border-gray-100 dark:border-border">
+        <div className="px-6 pb-4 pt-2 border-b border-gray-100 dark:border-border text-start">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground">Included Countries</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground">{t("Included Countries")}</h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 dark:text-blue-200 text-blue-700">
-                  {countries.length} {countries.length === 1 ? "country" : "countries"}
+                  {t('countries_included', { count: countries.length })}
                 </span>
                 <span className="text-xs text-gray-400 dark:text-muted-foreground/60">{label}</span>
               </div>
@@ -465,20 +467,20 @@ function IncludedCountriesSheet({
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search countries..."
-              className="w-full h-10 pl-9 pr-4 rounded-xl bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border text-sm text-gray-900 dark:text-foreground placeholder:text-gray-400 dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+              placeholder={t("Search countries...")}
+              className="w-full h-10 pl-9 pr-4 rounded-xl bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border text-sm text-gray-900 dark:text-foreground placeholder:text-gray-400 dark:placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 text-start"
             />
           </div>
         </div>
 
         {/* Country List */}
-        <div className="flex-1 overflow-y-auto px-6 pb-8">
+        <div className="flex-1 overflow-y-auto px-6 pb-8 text-start">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-muted flex items-center justify-center mb-3">
                 <Search className="w-5 h-5 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-400">No countries match your search</p>
+              <p className="text-sm text-gray-400">{t("No countries match your search")}</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100 dark:divide-border">
@@ -495,7 +497,7 @@ function IncludedCountriesSheet({
                   </div>
                   <span className="text-sm text-gray-900 dark:text-foreground">{country.name}</span>
                   {country.code && (
-                    <span className="text-[11px] text-gray-400 dark:text-muted-foreground/60 ml-auto font-mono">{country.code}</span>
+                    <span className="text-[11px] text-gray-400 dark:text-muted-foreground/60 ms-auto font-mono">{country.code}</span>
                   )}
                 </div>
               ))}

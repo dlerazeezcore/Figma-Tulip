@@ -150,6 +150,8 @@ export function Settings() {
               <option value="en">English</option>
               <option value="es">Español</option>
               <option value="fr">Français</option>
+              <option value="ar">العربية</option>
+              <option value="ku">کوردی</option>
             </select>
           </div>
 

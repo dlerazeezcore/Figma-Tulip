@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import i18n from '../i18n';
 
 export type Currency = 'USD' | 'EUR' | 'GBP' | 'IQD';
-export type Language = 'en' | 'es' | 'fr';
+export type Language = 'en' | 'es' | 'fr' | 'ar' | 'ku';
 
 interface UserPreferencesState {
   currency: Currency;

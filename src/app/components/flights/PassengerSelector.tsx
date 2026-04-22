@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { User, X, Plus, Minus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import type { PassengerCounts } from "../../types/flights";
 
@@ -14,6 +15,7 @@ export function PassengerSelector({
   counts: PassengerCounts;
   onChange: (counts: PassengerCounts) => void;
 }) {
+  const { t } = useTranslation();
   const [localCounts, setLocalCounts] = useState(counts);
 
   const updateCount = (type: keyof PassengerCounts, delta: number) => {
@@ -43,7 +45,7 @@ export function PassengerSelector({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 h-[400px] w-full max-w-md mx-auto rounded-t-2xl sm:rounded-2xl mt-auto overflow-hidden flex flex-col [&>button]:hidden">
         <div className="p-4 border-b border-gray-100 dark:border-border flex justify-between items-center bg-white dark:bg-card">
-          <DialogTitle className="text-lg font-semibold m-0">Passengers</DialogTitle>
+          <DialogTitle className="text-lg font-semibold m-0">{t("Passengers")}</DialogTitle>
           <button onClick={() => onOpenChange(false)} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-muted">
             <X className="w-5 h-5 text-gray-500" />
           </button>
@@ -51,8 +53,8 @@ export function PassengerSelector({
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           <StepperRow 
-            title="Adults" 
-            sub="12+ years" 
+            title={t("Adults")} 
+            sub={t("12+ years")} 
             value={localCounts.adults} 
             onDecrease={() => updateCount("adults", -1)}
             onIncrease={() => updateCount("adults", 1)}
@@ -60,8 +62,8 @@ export function PassengerSelector({
             increaseDisabled={totalPassengers >= 9}
           />
           <StepperRow 
-            title="Children" 
-            sub="2-11 years" 
+            title={t("Children")} 
+            sub={t("2-11 years")} 
             value={localCounts.children} 
             onDecrease={() => updateCount("children", -1)}
             onIncrease={() => updateCount("children", 1)}
@@ -69,8 +71,8 @@ export function PassengerSelector({
             increaseDisabled={totalPassengers >= 9}
           />
           <StepperRow 
-            title="Infants" 
-            sub="Under 2, on lap" 
+            title={t("Infants")} 
+            sub={t("Under 2, on lap")} 
             value={localCounts.infants} 
             onDecrease={() => updateCount("infants", -1)}
             onIncrease={() => updateCount("infants", 1)}
@@ -81,7 +83,7 @@ export function PassengerSelector({
 
         <div className="p-4 bg-white dark:bg-card border-t border-gray-100 dark:border-border">
           <button onClick={handleApply} className="w-full bg-[#1967D2] text-white rounded-xl py-3.5 font-semibold text-base hover:bg-[#1557B0] transition-colors">
-            Confirm
+            {t("Confirm")}
           </button>
         </div>
       </DialogContent>

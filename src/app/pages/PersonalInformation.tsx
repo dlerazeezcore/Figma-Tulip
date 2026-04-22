@@ -1,5 +1,6 @@
 import { ArrowLeft, ExternalLink, Trash2, User, Phone, AlertTriangle, Edit2, Mail, Plus } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -26,6 +27,7 @@ import { usePersonalInformationPageModel } from "../wiring/personal-information-
 import { toast } from "sonner";
 
 export function PersonalInformation() {
+  const { t } = useTranslation();
   const {
     isDeleting,
     isSavingProfile,
@@ -58,11 +60,11 @@ export function PersonalInformation() {
   const handleSaveName = async () => {
     const trimmedName = newName.trim();
     if (!trimmedName) {
-      setNameError("Name cannot be empty.");
+      setNameError(t("Name cannot be empty."));
       return;
     }
     if (trimmedName.length < 2) {
-      setNameError("Name must be at least 2 characters.");
+      setNameError(t("Name must be at least 2 characters."));
       return;
     }
 
@@ -98,12 +100,12 @@ export function PersonalInformation() {
     const trimmedEmail = newEmail.trim();
 
     if (!trimmedEmail && !isEdit) {
-      setEmailError("Email cannot be empty.");
+      setEmailError(t("Email cannot be empty."));
       return;
     }
 
     if (trimmedEmail && !validateEmail(trimmedEmail)) {
-      setEmailError("Please enter a valid email address.");
+      setEmailError(t("Please enter a valid email address."));
       return;
     }
 
@@ -120,7 +122,7 @@ export function PersonalInformation() {
       setShowAddEmailDialog(false);
     }
 
-    toast.success(result.cleared ? "Saved successfully" : "Saved successfully");
+    toast.success(result.cleared ? t("Saved successfully") : t("Saved successfully"));
   };
 
   return (
@@ -136,12 +138,12 @@ export function PersonalInformation() {
             onClick={goBack}
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {t("Back")}
           </button>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl">Personal Information</h1>
+            <h1 className="text-2xl">{t("Personal Information")}</h1>
           </div>
-          <p className="text-sm text-white/80">Review your account details and privacy controls</p>
+          <p className="text-sm text-white/80">{t("Review your account details and privacy controls")}</p>
         </div>
       </header>
 
@@ -150,21 +152,21 @@ export function PersonalInformation() {
           <EditableInfoRow
             icon={<User className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
             iconBg="bg-blue-100 dark:bg-blue-900/20"
-            label="Full Name"
+            label={t("Full Name")}
             value={userName}
             onEdit={handleOpenEditName}
           />
           <InfoRow
             icon={<Phone className="w-5 h-5 text-green-600 dark:text-green-400" />}
             iconBg="bg-green-100 dark:bg-green-900/20"
-            label="Phone Number"
+            label={t("Phone Number")}
             value={userPhone}
           />
           {userEmail ? (
             <EditableInfoRow
               icon={<Mail className="w-5 h-5 text-purple-600 dark:text-purple-400" />}
               iconBg="bg-purple-100 dark:bg-purple-900/20"
-              label="Email Address"
+              label={t("Email Address")}
               value={userEmail}
               onEdit={handleOpenEditEmail}
             />
@@ -177,7 +179,7 @@ export function PersonalInformation() {
             className="w-full h-12 gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary-hover hover:to-blue-700 shadow-md rounded-xl"
           >
             <Plus className="w-4 h-4" />
-            Add Email
+            {t("Add Email")}
           </Button>
         ) : null}
       </section>
@@ -193,9 +195,9 @@ export function PersonalInformation() {
                   <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-base font-medium mb-1 dark:text-foreground">Delete Account</h2>
+                  <h2 className="text-base font-medium mb-1 dark:text-foreground">{t("Delete Account")}</h2>
                   <p className="text-sm text-muted-foreground">
-                    This action deactivates your account, marks it as deleted, and signs you out immediately.
+                    {t("This action deactivates your account, marks it as deleted, and signs you out immediately.")}
                   </p>
                 </div>
               </div>
@@ -206,7 +208,7 @@ export function PersonalInformation() {
                   className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-hover underline transition-colors"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Open account deletion page
+                  {t("Open account deletion page")}
                 </a>
               ) : null}
 
@@ -219,24 +221,23 @@ export function PersonalInformation() {
                     disabled={isDeleting}
                   >
                     <Trash2 className="h-4 w-4" />
-                    {isDeleting ? "Deleting..." : "Delete & Deactivate Account"}
+                    {isDeleting ? t("Deleting...") : t("Delete & Deactivate Account")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete account now?</AlertDialogTitle>
+                    <AlertDialogTitle>{t("Delete account now?")}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      You will be signed out right away, and this account will no longer be able to log in.
-                      Existing records remain in backend as deleted status.
+                      {t("You will be signed out right away, and this account will no longer be able to log in. Existing records remain in backend as deleted status.")}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       onClick={handleDeleteAccount}
                     >
-                      Yes, delete account
+                      {t("Yes, delete account")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -249,8 +250,8 @@ export function PersonalInformation() {
       <Dialog open={showEditNameDialog} onOpenChange={setShowEditNameDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Edit Full Name</DialogTitle>
-            <DialogDescription>Update your display name</DialogDescription>
+            <DialogTitle>{t("Edit Full Name")}</DialogTitle>
+            <DialogDescription>{t("Update your display name")}</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input
@@ -261,7 +262,7 @@ export function PersonalInformation() {
                   setNameError("");
                 }
               }}
-              placeholder="Enter your full name"
+              placeholder={t("Enter your full name")}
               className="h-12 rounded-xl"
               autoFocus
               disabled={isSavingProfile}
@@ -280,14 +281,14 @@ export function PersonalInformation() {
               className="rounded-xl"
               disabled={isSavingProfile}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               onClick={() => void handleSaveName()}
               className="rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary-hover hover:to-blue-700"
               disabled={isSavingProfile}
             >
-              {isSavingProfile ? "Saving..." : "Save"}
+              {isSavingProfile ? t("Saving...") : t("Save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -296,8 +297,8 @@ export function PersonalInformation() {
       <Dialog open={showAddEmailDialog} onOpenChange={setShowAddEmailDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Add Email</DialogTitle>
-            <DialogDescription>Add a new email address</DialogDescription>
+            <DialogTitle>{t("Add Email")}</DialogTitle>
+            <DialogDescription>{t("Add a new email address")}</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input
@@ -308,7 +309,7 @@ export function PersonalInformation() {
                   setEmailError("");
                 }
               }}
-              placeholder="Enter your email address"
+              placeholder={t("Enter your email address")}
               className="h-12 rounded-xl"
               autoFocus
               disabled={isSavingProfile}
@@ -327,14 +328,14 @@ export function PersonalInformation() {
               className="rounded-xl"
               disabled={isSavingProfile}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               onClick={() => void handleSaveEmail(false)}
               className="rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary-hover hover:to-blue-700"
               disabled={isSavingProfile}
             >
-              {isSavingProfile ? "Saving..." : "Save"}
+              {isSavingProfile ? t("Saving...") : t("Save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -343,9 +344,9 @@ export function PersonalInformation() {
       <Dialog open={showEditEmailDialog} onOpenChange={setShowEditEmailDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Edit Email</DialogTitle>
+            <DialogTitle>{t("Edit Email")}</DialogTitle>
             <DialogDescription>
-              Update your email address, or clear it to remove the current email.
+              {t("Update your email address, or clear it to remove the current email.")}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -357,7 +358,7 @@ export function PersonalInformation() {
                   setEmailError("");
                 }
               }}
-              placeholder="Enter your email address"
+              placeholder={t("Enter your email address")}
               className="h-12 rounded-xl"
               autoFocus
               disabled={isSavingProfile}
@@ -376,14 +377,14 @@ export function PersonalInformation() {
               className="rounded-xl"
               disabled={isSavingProfile}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               onClick={() => void handleSaveEmail(true)}
               className="rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary-hover hover:to-blue-700"
               disabled={isSavingProfile}
             >
-              {isSavingProfile ? "Saving..." : "Save"}
+              {isSavingProfile ? t("Saving...") : t("Save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -408,7 +409,7 @@ function InfoRow({
       <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
         {icon}
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 text-start">
         <span className="text-xs text-muted-foreground block mb-0.5">{label}</span>
         <span className="text-sm font-medium truncate block dark:text-foreground">{value}</span>
       </div>
@@ -434,7 +435,7 @@ function EditableInfoRow({
       <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
         {icon}
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 text-start">
         <span className="text-xs text-muted-foreground block mb-0.5">{label}</span>
         <span className="text-sm font-medium truncate block dark:text-foreground">{value}</span>
       </div>

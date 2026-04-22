@@ -1,8 +1,11 @@
 import { useNavigate } from "react-router";
-import { CreditCard, Plane, Building2, ChevronRight, Package, Clipboard } from "lucide-react";
+import { CreditCard, Plane, Building2, ChevronRight, Package, Clipboard, ChevronLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function Bookings() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const isRTL = document.documentElement.dir === 'rtl';
 
   const handleServiceClick = (service: "esim" | "flight" | "hotel") => {
     if (service === "esim") {
@@ -18,8 +21,8 @@ export function Bookings() {
     {
       key: "esim" as const,
       icon: CreditCard,
-      title: "My eSIM Plans",
-      subtitle: "View your active eSIMs",
+      title: t("My eSIM Plans"),
+      subtitle: t("View your active eSIMs"),
       accentFrom: "#1967D2",
       accentTo: "#114A99",
       bgAccent: "bg-blue-50",
@@ -28,8 +31,8 @@ export function Bookings() {
     {
       key: "flight" as const,
       icon: Plane,
-      title: "My Flights",
-      subtitle: "Manage flight bookings",
+      title: t("My Flights"),
+      subtitle: t("Manage flight bookings"),
       accentFrom: "#7C3AED",
       accentTo: "#5B21B6",
       bgAccent: "bg-violet-50",
@@ -38,8 +41,8 @@ export function Bookings() {
     {
       key: "hotel" as const,
       icon: Building2,
-      title: "My Hotels",
-      subtitle: "View hotel reservations",
+      title: t("My Hotels"),
+      subtitle: t("View hotel reservations"),
       accentFrom: "#0D9488",
       accentTo: "#0F766E",
       bgAccent: "bg-teal-50",
@@ -55,14 +58,14 @@ export function Bookings() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
         
-        <div className="relative z-10">
+        <div className="relative z-10 text-start">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center shadow-lg">
               <Clipboard className="w-5 h-5 text-white" strokeWidth={2} />
             </div>
             <div>
-              <h1 className="text-2xl">My Bookings</h1>
-              <p className="text-sm text-white/90 mt-0.5">Manage all your travel services</p>
+              <h1 className="text-2xl font-bold">{t("My Bookings")}</h1>
+              <p className="text-sm text-white/90 mt-0.5">{t("Manage all your travel services")}</p>
             </div>
           </div>
         </div>
@@ -70,9 +73,9 @@ export function Bookings() {
 
       <div className="px-6 py-6">
         {/* Category label */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4 text-start">
           <Package className="w-4 h-4 text-gray-400" />
-          <span className="text-xs tracking-wide text-gray-400 uppercase">Your Services</span>
+          <span className="text-xs tracking-wide text-gray-400 uppercase">{t("Your Services")}</span>
         </div>
 
         {/* Service cards — each with its own color identity */}
@@ -83,7 +86,7 @@ export function Bookings() {
               <button
                 key={svc.key}
                 onClick={() => handleServiceClick(svc.key)}
-                className="w-full group text-left"
+                className="w-full group text-start"
               >
                 <div
                   className={`relative rounded-2xl border ${svc.borderAccent} dark:border-border ${svc.bgAccent}/40 dark:bg-card/50 hover:shadow-md transition-all active:scale-[0.98] overflow-hidden`}
@@ -96,7 +99,7 @@ export function Bookings() {
                           background: `linear-gradient(135deg, ${svc.accentFrom}, ${svc.accentTo})`,
                         }}
                       >
-                        <Icon className="w-6 h-6 text-white" strokeWidth={2} />
+                        <Icon className={`w-6 h-6 text-white ${isRTL && svc.key === 'flight' ? '-scale-x-100' : ''}`} strokeWidth={2} />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -104,7 +107,11 @@ export function Bookings() {
                       <p className="text-xs text-gray-500 dark:text-muted-foreground">{svc.subtitle}</p>
                     </div>
                     <div className="flex-shrink-0">
-                      <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
+                      {isRTL ? (
+                        <ChevronLeft className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
+                      )}
                     </div>
                   </div>
                 </div>

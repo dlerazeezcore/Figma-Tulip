@@ -1,15 +1,27 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, CheckCircle2, Plane, Clock, ShieldCheck, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Plane, Clock, ShieldCheck, ArrowRightLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Card } from "../../components/ui/card";
 import { format } from "date-fns";
 import { useCurrency } from "../../utils/currency";
+import { enUS, ar, es, fr } from 'date-fns/locale';
+
+const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: ar };
 
 export function FlightSummary() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t, i18n: i18nInstance } = useTranslation();
   const { formatPrice } = useCurrency();
-  const { tripType, outboundSelection, returnSelection, origin, destination, dateRange } = location.state || {};
+  const isRTL = document.documentElement.dir === 'rtl';
+  const currentLocale = locales[i18nInstance.language] || locales.en;
+
+  const { tripType, outboundSelection, returnSelection, origin, destination, dateRange, passengers } = location.state || {
+    passengers: { adults: 1, children: 0, infants: 0 }
+  };
+
+  const totalPassengers = passengers.adults + passengers.children + passengers.infants;
 
   // Construct view models from state or fallback to mock
   const outboundLeg = outboundSelection ? {
@@ -53,10 +65,10 @@ export function FlightSummary() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white dark:bg-card border-b border-gray-100 dark:border-border shadow-sm">
         <div className="px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-muted transition-colors">
-            <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          <button onClick={() => navigate(-1)} className="p-2 -ms-2 rounded-full hover:bg-gray-100 dark:hover:bg-muted transition-colors">
+            {isRTL ? <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" /> : <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />}
           </button>
-          <h1 className="text-base font-semibold tracking-tight">Review Trip</h1>
+          <h1 className="text-base font-semibold tracking-tight">{t("Review Trip")}</h1>
         </div>
       </header>
 
@@ -66,10 +78,10 @@ export function FlightSummary() {
           <Card className="p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-border bg-white dark:bg-card">
             <div className="flex justify-between items-center mb-4">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-gray-100 dark:bg-muted rounded-full">
-                <Plane className="w-3 h-3 text-gray-500" />
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Outbound</span>
+                <Plane className={`w-3 h-3 text-gray-500 ${isRTL ? '-scale-x-100' : ''}`} />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{t("Outbound")}</span>
               </div>
-              <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{format(new Date(displayOutbound.date), "EEE, d MMM")}</span>
+              <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{format(new Date(displayOutbound.date), "EEE, d MMM", { locale: currentLocale })}</span>
             </div>
 
             <div className="flex gap-4">
@@ -79,7 +91,7 @@ export function FlightSummary() {
                 <div className="w-2.5 h-2.5 rounded-full bg-[#1967D2] dark:bg-[#5e96f2]"></div>
               </div>
               
-              <div className="flex-1 flex flex-col justify-between py-0.5">
+              <div className="flex-1 flex flex-col justify-between py-0.5 text-start">
                 <div>
                   <p className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-none mb-1">{format(new Date(displayOutbound.date), "HH:mm")}</p>
                   <p className="text-sm text-gray-500 font-medium">{displayOutbound.origin}</p>
@@ -93,7 +105,7 @@ export function FlightSummary() {
             
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-border/60 flex items-center justify-between text-sm">
               <span className="font-medium text-gray-700 dark:text-gray-300">{displayOutbound.airlineName}</span>
-              <span className="text-gray-500 flex items-center gap-1.5"><Clock className="w-4 h-4"/> 2h 30m</span>
+              <span className="text-gray-500 flex items-center gap-1.5"><Clock className="w-4 h-4"/> 2{t('f_h')} 30{t('f_m')}</span>
             </div>
           </Card>
 
@@ -101,9 +113,9 @@ export function FlightSummary() {
           {displayOutbound.hasFareFamilies && (
             <Card className="p-4 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-900/10 flex items-start gap-3">
                <ShieldCheck className="w-6 h-6 text-[#1967D2] dark:text-[#5e96f2] shrink-0 mt-0.5" />
-               <div>
-                 <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base mb-0.5">{displayOutbound.fareName} Fare Selected</h3>
-                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">Includes your selected baggage allowance and flexibility options for the outbound leg.</p>
+               <div className="text-start">
+                 <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base mb-0.5">{t(displayOutbound.fareName)} {t("Fare Selected")}</h3>
+                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">{t("fare_selected_description_outbound")}</p>
                </div>
             </Card>
           )}
@@ -123,9 +135,9 @@ export function FlightSummary() {
                 <div className="flex justify-between items-center mb-4">
                   <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-gray-100 dark:bg-muted rounded-full">
                     <Plane className="w-3 h-3 text-gray-500 rotate-180" />
-                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Return</span>
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{t("Return")}</span>
                   </div>
-                  <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{format(new Date(returnLeg.date), "EEE, d MMM")}</span>
+                  <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{format(new Date(returnLeg.date), "EEE, d MMM", { locale: currentLocale })}</span>
                 </div>
 
                 <div className="flex gap-4">
@@ -135,7 +147,7 @@ export function FlightSummary() {
                     <div className="w-2.5 h-2.5 rounded-full bg-[#1967D2] dark:bg-[#5e96f2]"></div>
                   </div>
                   
-                  <div className="flex-1 flex flex-col justify-between py-0.5">
+                  <div className="flex-1 flex flex-col justify-between py-0.5 text-start">
                     <div>
                       <p className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-none mb-1">{format(new Date(returnLeg.date), "HH:mm")}</p>
                       <p className="text-sm text-gray-500 font-medium">{returnLeg.origin}</p>
@@ -149,16 +161,16 @@ export function FlightSummary() {
                 
                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-border/60 flex items-center justify-between text-sm">
                   <span className="font-medium text-gray-700 dark:text-gray-300">{returnLeg.airlineName}</span>
-                  <span className="text-gray-500 flex items-center gap-1.5"><Clock className="w-4 h-4"/> 2h 30m</span>
+                  <span className="text-gray-500 flex items-center gap-1.5"><Clock className="w-4 h-4"/> 2{t('f_h')} 30{t('f_m')}</span>
                 </div>
               </Card>
 
               {returnLeg.hasFareFamilies && (
                 <Card className="p-4 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-900/10 flex items-start gap-3">
                    <ShieldCheck className="w-6 h-6 text-[#1967D2] dark:text-[#5e96f2] shrink-0 mt-0.5" />
-                   <div>
-                     <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base mb-0.5">{returnLeg.fareName} Fare Selected</h3>
-                     <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">Includes your selected baggage allowance and flexibility options for the return leg.</p>
+                   <div className="text-start">
+                     <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base mb-0.5">{t(returnLeg.fareName)} {t("Fare Selected")}</h3>
+                     <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug">{t("fare_selected_description_return")}</p>
                    </div>
                 </Card>
               )}
@@ -171,16 +183,18 @@ export function FlightSummary() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-card/80 backdrop-blur-md border-t border-gray-100 dark:border-border z-30">
         <div className="max-w-md mx-auto">
           <div className="flex justify-between items-end mb-3 px-2">
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-0.5">Total for 1 Passenger</p>
-              <p className="text-xs text-gray-400">Includes taxes and fees</p>
+            <div className="text-start">
+              <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-0.5">
+                {t('total_for_passengers', { count: totalPassengers })}
+              </p>
+              <p className="text-xs text-gray-400">{t("Includes taxes and fees")}</p>
             </div>
             <p className="text-2xl font-extrabold text-[#1967D2] dark:text-[#5e96f2]">{formatPrice(totalPrice)}</p>
           </div>
           <button 
             className="w-full bg-[#1967D2] text-white rounded-xl py-4 font-bold text-lg hover:bg-[#1557B0] active:scale-[0.98] transition-all shadow-[0_8px_20px_rgba(25,103,210,0.3)]"
           >
-            Continue to Checkout
+            {t("Continue to Checkout")}
           </button>
         </div>
       </div>

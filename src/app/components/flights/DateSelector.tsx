@@ -1,9 +1,13 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { DayPicker, DateRange } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { format } from "date-fns";
+import { enUS, ar, es, fr } from 'date-fns/locale';
+
+const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: ar }; // Kurdish (Sorani) uses Arabic script, common to use ar if specific ku not available in date-fns
 
 export function DateSelector({
   open,
@@ -18,7 +22,10 @@ export function DateSelector({
   range: DateRange | undefined;
   onChange: (range: DateRange | undefined) => void;
 }) {
+  const { t, i18n: i18nInstance } = useTranslation();
   const [localRange, setLocalRange] = useState<DateRange | undefined>(range);
+
+  const currentLocale = locales[i18nInstance.language] || locales.en;
 
   const handleApply = () => {
     onChange(localRange);
@@ -26,10 +33,10 @@ export function DateSelector({
   };
 
   const getHeaderTitle = () => {
-    if (tripType === "oneway") return "Select Departure";
-    if (!localRange?.from && !localRange?.to) return "Select Departure";
-    if (localRange?.from && !localRange?.to) return "Select Return Date";
-    return "Selected Dates";
+    if (tripType === "oneway") return t("Select Departure");
+    if (!localRange?.from && !localRange?.to) return t("Select Departure");
+    if (localRange?.from && !localRange?.to) return t("Select Return Date");
+    return t("Selected Dates");
   };
 
   return (
@@ -45,6 +52,8 @@ export function DateSelector({
         <div className="flex-1 overflow-y-auto p-4 flex justify-center">
           <DayPicker
             mode={tripType === "roundtrip" ? "range" : "single"}
+            locale={currentLocale}
+            dir={document.documentElement.dir}
             // @ts-ignore - mismatch in expected types based on mode, but works in practice
             selected={tripType === "roundtrip" ? localRange : localRange?.from}
             // @ts-ignore
@@ -71,7 +80,7 @@ export function DateSelector({
             onClick={handleApply} 
             className="w-full bg-[#1967D2] text-white rounded-xl py-3.5 font-semibold text-base hover:bg-[#1557B0] transition-colors disabled:opacity-50 disabled:bg-gray-400"
           >
-            Confirm
+            {t("Confirm")}
           </button>
         </div>
       </DialogContent>

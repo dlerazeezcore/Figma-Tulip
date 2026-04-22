@@ -1,4 +1,4 @@
-import { ArrowLeft, Globe, Calendar, Database, QrCode, Zap, Power, Loader2 } from "lucide-react";
+import { ArrowLeft, Globe, Calendar, Database, QrCode, Zap, Power, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -14,6 +14,7 @@ import { Progress } from "../components/ui/progress";
 import { useNavigate } from "react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { buildQrImageUrl, type MyEsimItem, useMyEsimsPageModel } from "../wiring/my-esims-page-service";
 
 function formatNumber(value: number): string {
@@ -54,6 +55,8 @@ function formatDate(value: string): string {
 
 export function MyEsims() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const isRTL = document.documentElement.dir === 'rtl';
   const {
     esims,
     activeEsims,
@@ -92,7 +95,7 @@ export function MyEsims() {
       setIsRefreshing(true);
       void refresh(true)
         .catch(() => {
-          toast.error("Could not refresh eSIMs right now.");
+          toast.error(t("Could not refresh eSIMs right now."));
         })
         .finally(() => {
           setIsRefreshing(false);
@@ -106,13 +109,13 @@ export function MyEsims() {
 
   const handleOpenQr = (esim: MyEsimItem) => {
     if (!esim.canShowQr || !esim.qrPayload) {
-      toast.error("QR is not available for this eSIM.");
+      toast.error(t("QR is not available for this eSIM."));
       return;
     }
 
     const qrUrl = buildQrImageUrl(esim.qrPayload);
     if (!qrUrl) {
-      toast.error("QR is not available for this eSIM.");
+      toast.error(t("QR is not available for this eSIM."));
       return;
     }
     setSelectedQrEsim(esim);
@@ -123,25 +126,25 @@ export function MyEsims() {
       case "active":
         return (
           <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-900 border-0">
-            Active
+            {t("Active")}
           </Badge>
         );
       case "inactive":
         return (
           <Badge className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-900 border-0">
-            Inactive
+            {t("Inactive")}
           </Badge>
         );
       case "pending":
         return (
           <Badge className="bg-gradient-to-r from-amber-100 to-amber-200 text-amber-900 border-0">
-            Pending
+            {t("Pending")}
           </Badge>
         );
       case "expired":
         return (
           <Badge className="bg-gradient-to-r from-red-100 to-red-200 text-red-900 border-0">
-            Expired
+            {t("Expired")}
           </Badge>
         );
       default:
@@ -175,7 +178,7 @@ export function MyEsims() {
             <Loader2 className="w-6 h-6 text-primary animate-spin" />
           ) : (
             <div className="text-sm text-gray-600">
-              {pullDistance > 80 ? "Release to refresh" : "Pull to refresh"}
+              {pullDistance > 80 ? t("Release to refresh") : t("Pull to refresh")}
             </div>
           )}
         </div>
@@ -185,19 +188,19 @@ export function MyEsims() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
-        <div className="relative z-10">
+        <div className="relative z-10 text-start">
           <button
             onClick={() => navigate("/bookings")}
             className="mb-4 inline-flex items-center gap-2 text-sm text-white/90 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg backdrop-blur-sm"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Bookings
+            {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {t("Back to Bookings")}
           </button>
-          <h1 className="text-2xl mb-2">My eSIMs</h1>
+          <h1 className="text-2xl mb-2 font-bold">{t("My eSIMs")}</h1>
           <div className="flex items-center gap-2 text-sm text-white/90">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-green-400"></div>
-              <span>{activeCount} active</span>
+              <span>{t('active_count_label', { count: activeCount })}</span>
             </div>
           </div>
         </div>
@@ -206,11 +209,11 @@ export function MyEsims() {
       <div className="px-6 py-6 space-y-4">
         {loading && esims.length === 0 ? (
           <Card className="p-8 text-center text-gray-500 border-0 shadow-md">
-            Loading your eSIMs...
+            {t("Loading your eSIMs...")}
           </Card>
         ) : esims.length === 0 ? (
           <Card className="p-8 text-center text-gray-500 border-0 shadow-md">
-            No eSIMs found yet.
+            {t("No eSIMs found yet.")}
           </Card>
         ) : (
           esims.map((esim) => {
@@ -235,7 +238,7 @@ export function MyEsims() {
 
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center gap-3 flex-1 text-start">
                       <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/40 flex items-center justify-center shadow-sm">
                         <CountryFlag
                           code={esim.countryCode}
@@ -259,7 +262,7 @@ export function MyEsims() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Database className="w-4 h-4 text-primary" />
-                          <span className="text-xs font-medium text-gray-700 dark:text-foreground">Data Usage</span>
+                          <span className="text-xs font-medium text-gray-700 dark:text-foreground">{t("Data Usage")}</span>
                         </div>
                         <span className="text-sm font-semibold text-gray-900 dark:text-foreground">
                           {formatDataLabelFromMb(esim.dataRemaining)} / {formatDataLabelFromMb(esim.dataTotal)}
@@ -269,19 +272,19 @@ export function MyEsims() {
                         value={getDataPercentage(esim.dataUsed, esim.dataTotal)}
                         className="h-2 mb-2"
                       />
-                      <p className="text-xs text-gray-600 dark:text-muted-foreground">
-                        {formatDataLabelFromMb(esim.dataUsed)} used • {formatDataLabelFromMb(esim.dataRemaining)} remaining
+                      <p className="text-xs text-gray-600 dark:text-muted-foreground text-start">
+                        {t('data_used_of_remaining', { used: formatDataLabelFromMb(esim.dataUsed), remaining: formatDataLabelFromMb(esim.dataRemaining) })}
                       </p>
                     </div>
                   )}
 
                   {esim.dataTotal === 0 && esim.status !== "expired" && (
                     <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-800/40">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 text-start">
                         <Zap className="w-5 h-5 text-primary" />
                         <div>
-                          <p className="text-sm font-semibold text-gray-900 dark:text-foreground">Unlimited Data</p>
-                          <p className="text-xs text-gray-600 dark:text-muted-foreground">Use as much as you need</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-foreground">{t("Unlimited Data")}</p>
+                          <p className="text-xs text-gray-600 dark:text-muted-foreground">{t("Use as much as you need")}</p>
                         </div>
                       </div>
                     </div>
@@ -290,16 +293,16 @@ export function MyEsims() {
                   <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-card border border-gray-100 dark:border-border mb-4">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-xs text-gray-600 dark:text-muted-foreground">Valid until</span>
+                      <span className="text-xs text-gray-600 dark:text-muted-foreground">{t("Valid until")}</span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-end">
                       <p className="text-sm font-medium text-gray-900 dark:text-foreground">{formatDate(esim.validUntil)}</p>
                       {!esim.activatedDate ? (
-                        <p className="text-xs text-gray-500 dark:text-muted-foreground/60">Not activated yet</p>
+                        <p className="text-xs text-gray-500 dark:text-muted-foreground/60">{t("Not activated yet")}</p>
                       ) : esim.status === "expired" || (esim.hasDaysLeft && esim.daysLeft <= 0) ? (
-                        <p className="text-xs text-red-600 dark:text-red-400">Expired/Inactive</p>
+                        <p className="text-xs text-red-600 dark:text-red-400">{t("Expired/Inactive")}</p>
                       ) : esim.hasDaysLeft && esim.daysLeft > 0 ? (
-                        <p className="text-xs text-gray-500 dark:text-muted-foreground/60">{esim.daysLeft} days left</p>
+                        <p className="text-xs text-gray-500 dark:text-muted-foreground/60">{t('days_left', { count: esim.daysLeft })}</p>
                       ) : (
                         <p className="text-xs text-gray-500">-</p>
                       )}
@@ -313,8 +316,8 @@ export function MyEsims() {
                       disabled={!esim.canShowQr}
                       onClick={() => handleOpenQr(esim)}
                     >
-                      <QrCode className="w-4 h-4 mr-1.5" />
-                      View QR
+                      <QrCode className="w-4 h-4 me-1.5" />
+                      {t("View QR")}
                     </Button>
                     <Button
                       className="h-10 text-xs rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary-hover hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-400"
@@ -322,11 +325,11 @@ export function MyEsims() {
                       onClick={() => void handleActivate(esim)}
                     >
                       {isBusy ? (
-                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                        <Loader2 className="w-4 h-4 me-1.5 animate-spin" />
                       ) : (
-                        <Power className="w-4 h-4 mr-1.5" />
+                        <Power className="w-4 h-4 me-1.5" />
                       )}
-                      {isBusy ? "Activating..." : activateLabel}
+                      {isBusy ? t("Activating...") : t(activateLabel)}
                     </Button>
                     {showTopUp && (
                       <Button
@@ -335,7 +338,7 @@ export function MyEsims() {
                         disabled={!esim.canTopUp || isBusy}
                         onClick={() => void handleTopUp(esim)}
                       >
-                        Top up
+                        {t("Top up")}
                       </Button>
                     )}
                   </div>
@@ -347,17 +350,17 @@ export function MyEsims() {
       </div>
       <Dialog open={Boolean(selectedQrEsim)} onOpenChange={(open) => (!open ? setSelectedQrEsim(null) : undefined)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>eSIM QR</DialogTitle>
+          <DialogHeader className="text-start">
+            <DialogTitle>{t("eSIM QR")}</DialogTitle>
             <DialogDescription>
-              Scan this QR code from your device eSIM settings to install.
+              {t("Scan this QR code from your device eSIM settings to install.")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center rounded-xl bg-white p-4">
             {selectedQrUrl ? (
               <img src={selectedQrUrl} alt="eSIM QR Code" className="h-64 w-64 rounded-md border border-gray-200" />
             ) : (
-              <p className="text-sm text-gray-500">QR is not available for this eSIM.</p>
+              <p className="text-sm text-gray-500">{t("QR is not available for this eSIM.")}</p>
             )}
           </div>
         </DialogContent>

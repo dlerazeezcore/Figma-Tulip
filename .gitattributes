@@ -1,0 +1,24 @@
+# Enforce binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.jar binary
+*.svg text
+*.xml text
+*.json text
+*.js text
+*.ts text
+*.tsx text
+*.css text
+*.html text
+*.swift text
+*.m text
+*.h text
+*.java text
+*.gradle text
+*.properties text
+gradlew text eol=lf

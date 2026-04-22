@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { RouterProvider } from "react-router";
 import { Toaster } from "./components/ui/sonner";
 import { SplashScreen as NativeSplashScreen } from "@capacitor/splash-screen";
+import { useTranslation } from "react-i18next";
 import { InitSuperAdmin } from "./components/InitSuperAdmin";
 import { SplashScreen } from "./components/SplashScreen";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -15,6 +16,14 @@ async function loadPushNotificationsService() {
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const { i18n } = useTranslation();
+
+  useEffect(() => {
+    // Sync document direction with language
+    const isRtl = i18n.language === 'ar' || i18n.language === 'ku';
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
 
   useEffect(() => {
     // Hide native splash screen as soon as possible
