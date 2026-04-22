@@ -11,6 +11,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [currentProduct, setCurrentProduct] = useState(0);
   const [showBrand, setShowBrand] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const products = [
     { icon: Plane, name: "Flights", color: "from-blue-500 to-cyan-500", bgColor: "from-blue-50 to-cyan-50" },
@@ -148,12 +149,24 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
               
               {/* Circular logo container - matching product style */}
               <div className="w-32 h-32 rounded-full bg-gradient-to-br from-white to-blue-50 shadow-2xl flex items-center justify-center overflow-hidden relative">
-                <img 
-                  src={tulipLogo}
-                  alt="Tulip" 
-                  className="absolute inset-0 w-full h-full object-contain"
-                  style={{ transform: 'scale(1.5) translateY(4%)' }}
-                />
+                {!logoFailed ? (
+                  <img 
+                    src={tulipLogo}
+                    alt="Tulip" 
+                    className="absolute inset-0 w-full h-full object-contain"
+                    style={{ transform: 'scale(1.5) translateY(4%)' }}
+                    onError={() => setLogoFailed(true)}
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#1967D2] via-[#1557B0] to-[#114A99] text-white">
+                    <div className="flex flex-col items-center leading-none">
+                      <span className="text-4xl font-bold tracking-tight">T</span>
+                      <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.35em] pl-[0.35em]">
+                        Tulip
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
