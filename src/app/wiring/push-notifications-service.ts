@@ -7,7 +7,7 @@ import {
   type PermissionState,
   type Token,
 } from "@capacitor/push-notifications";
-import { isBackendCapabilityEnabled } from "./config";
+import { isBackendCapabilityEnabled, isNativePushEnabled } from "./config";
 import * as client from "./esim-app-client";
 import { getUserId } from "./session";
 
@@ -462,11 +462,7 @@ async function requestNotificationPermissionForVersion(version: string): Promise
 }
 
 export async function bootstrapPushNotifications(): Promise<void> {
-  if (!isBackendCapabilityEnabled("pushNotifications")) {
-    return;
-  }
-
-  if (!isNativePushSupported()) {
+  if (!isBackendCapabilityEnabled("pushNotifications") || !isNativePushEnabled() || !isNativePushSupported()) {
     return;
   }
 
@@ -573,9 +569,10 @@ export async function updatePushNotificationsPreference(enabled: boolean): Promi
   writeStoredPushNotificationsEnabledPreference(enabled);
   const appVersion = await resolveCurrentAppVersion();
 
-  if (!isNativePushSupported()) {
+  if (!isNativePushEnabled() || !isNativePushSupported()) {
+    writeStoredPushNotificationsEnabledPreference(false);
     return {
-      enabled,
+      enabled: false,
       reason: "unsupported",
     };
   }
@@ -652,11 +649,7 @@ export async function updatePushNotificationsPreference(enabled: boolean): Promi
 }
 
 export async function syncPushUserContext(): Promise<void> {
-  if (!isBackendCapabilityEnabled("pushNotifications")) {
-    return;
-  }
-
-  if (!isNativePushSupported()) {
+  if (!isBackendCapabilityEnabled("pushNotifications") || !isNativePushEnabled() || !isNativePushSupported()) {
     return;
   }
 

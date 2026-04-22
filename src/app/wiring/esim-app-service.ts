@@ -10,6 +10,7 @@ import {
   getUserId as getStoredUserId,
   setAuthSession,
 } from "./session";
+import { isNativePushEnabled } from "./config";
 import type { ApiResponse, AnyRecord } from "./types";
 import { getCheckoutReturnUrl } from "../utils/native-payment";
 
@@ -499,11 +500,13 @@ export async function signup(phone: string, name: string, _password?: string): P
 
   persistAuthIdentity(identity);
 
-  void import("./push-notifications-service")
-    .then((service) => service.syncPushUserContext())
-    .catch((error) => {
-      console.warn("Post-signup push sync skipped:", error);
-    });
+  if (isNativePushEnabled()) {
+    void import("./push-notifications-service")
+      .then((service) => service.syncPushUserContext())
+      .catch((error) => {
+        console.warn("Post-signup push sync skipped:", error);
+      });
+  }
 
   return {
     success: true,
@@ -575,11 +578,13 @@ export async function login(phone: string, password?: string): Promise<ApiRespon
     // /auth/me reconcile is best-effort; keep login identity when unavailable.
   }
 
-  void import("./push-notifications-service")
-    .then((service) => service.syncPushUserContext())
-    .catch((error) => {
-      console.warn("Post-login push sync skipped:", error);
-    });
+  if (isNativePushEnabled()) {
+    void import("./push-notifications-service")
+      .then((service) => service.syncPushUserContext())
+      .catch((error) => {
+        console.warn("Post-login push sync skipped:", error);
+      });
+  }
 
   return {
     success: true,

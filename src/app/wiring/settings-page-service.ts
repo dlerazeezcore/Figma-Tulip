@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { clearAuth, isAdmin, isAuthenticated } from "./account-service";
+import { getNativePushUnavailableReason, isNativePushEnabled } from "./config";
 import {
   readStoredPushNotificationsEnabledPreference,
   syncPushUserContext,
@@ -145,7 +146,7 @@ export function useSettingsPageModel(): SettingsPageModel {
         .then((result) => {
           if (result.enabled === nextValue) {
             if (result.reason === "unsupported" && nextValue) {
-              toast.info("Push notifications will work in the native iOS and Android apps.");
+              toast.info(getNativePushUnavailableReason());
             }
             return;
           }
@@ -199,9 +200,11 @@ export function useSettingsPageModel(): SettingsPageModel {
       setAdmin(isAdmin());
       setUserPhone(getUserPhone());
       setUserName(getUserName() || "Guest User");
-      void syncPushUserContext().catch((error) => {
-        console.warn("Settings auth-success push sync skipped:", error);
-      });
+      if (isNativePushEnabled()) {
+        void syncPushUserContext().catch((error) => {
+          console.warn("Settings auth-success push sync skipped:", error);
+        });
+      }
       toast.success("Authentication successful");
     },
   };

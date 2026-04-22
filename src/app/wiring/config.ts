@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { NATIVE_PUSH_CONFIG } from "./generated-native-push-config";
 
 const DEFAULT_NATIVE_API_BASE = "https://mean-lettie-corevia-0bd7cc91.koyeb.app/api/v1";
 const DEFAULT_WEB_API_BASE = "/api/v1";
@@ -134,4 +135,48 @@ export function getFibBaseCandidates(): string[] {
 
 export function isBackendCapabilityEnabled(capability: BackendCapability): boolean {
   return Boolean(BACKEND_CAPABILITIES[capability]);
+}
+
+export function getNativePushUnavailableReason(): string {
+  if (!isBackendCapabilityEnabled("pushNotifications")) {
+    return "Push notifications are disabled for this app build.";
+  }
+
+  try {
+    const platform = Capacitor.getPlatform();
+    if (platform === "ios" && !NATIVE_PUSH_CONFIG.ios.enabled) {
+      return "iOS push notifications need the Push Notifications capability and APNs entitlements in Xcode.";
+    }
+    if (platform === "android" && !NATIVE_PUSH_CONFIG.android.enabled) {
+      return "Android push notifications need android/app/google-services.json from the Firebase project before they can be enabled.";
+    }
+  } catch {
+    // Fall through to the generic message below.
+  }
+
+  return "Push notifications are only available in the native iOS and Android apps.";
+}
+
+export function isNativePushConfigured(): boolean {
+  try {
+    const platform = Capacitor.getPlatform();
+    if (platform === "ios") {
+      return NATIVE_PUSH_CONFIG.ios.enabled;
+    }
+    if (platform === "android") {
+      return NATIVE_PUSH_CONFIG.android.enabled;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+export function isNativePushEnabled(): boolean {
+  try {
+    return isBackendCapabilityEnabled("pushNotifications") && isNativePushConfigured();
+  } catch {
+    return false;
+  }
 }
