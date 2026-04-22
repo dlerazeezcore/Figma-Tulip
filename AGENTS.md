@@ -1,4 +1,5 @@
 # Codebase Structure and Conventions for Tulip Travel App
+# Heartbeat: 2026-04-22 12:48 UTC
 
 This is a React + TypeScript web application using Vite, React Router, and Tailwind CSS v4.
 Always follow these structure constraints and conventions for this codebase.
