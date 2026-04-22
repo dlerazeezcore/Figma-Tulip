@@ -2,19 +2,19 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { PlaneTakeoff, PlaneLanding, Calendar, User, ArrowRightLeft, ArrowLeft, Armchair } from "lucide-react";
 import { Card } from "../../components/ui/card";
-import { AirportSelector } from "./components/AirportSelector";
-import { PassengerSelector, type PassengerCounts } from "./components/PassengerSelector";
-import { CabinSelector, type CabinClass } from "./components/CabinSelector";
-import { DateSelector } from "./components/DateSelector";
+import { AirportSelector } from "../../components/flights/AirportSelector";
+import { PassengerSelector, type PassengerCounts } from "../../components/flights/PassengerSelector";
+import { CabinSelector, type CabinClass } from "../../components/flights/CabinSelector";
+import { DateSelector } from "../../components/flights/DateSelector";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+import type { Airport, TripType } from "../../types/flights";
 
 type ActiveSheet = "none" | "origin" | "destination" | "dates" | "passengers" | "cabin";
-type Airport = { code: string; city: string; name: string };
 
 export function FlightSearchFlow() {
   const navigate = useNavigate();
-  const [tripType, setTripType] = useState<"oneway" | "roundtrip">("oneway");
+  const [tripType, setTripType] = useState<TripType>("oneway");
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>("none");
   
   const [origin, setOrigin] = useState<Airport | null>(null);

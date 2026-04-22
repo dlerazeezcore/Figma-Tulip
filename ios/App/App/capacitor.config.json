@@ -2,6 +2,7 @@
 	"appId": "com.theesim.app",
 	"appName": "Tulip Booking",
 	"webDir": "build",
+	"bundledWebRuntime": false,
 	"plugins": {
 		"PushNotifications": {
 			"presentationOptions": [

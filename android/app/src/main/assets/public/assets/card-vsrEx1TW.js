@@ -1,0 +1,1 @@
+import{j as a}from"./index-DNnlKKzd.js";import{c as t}from"./utils-BQHNewu7.js";function e({className:r,...o}){return a.jsx("div",{"data-slot":"card",className:t("bg-card text-card-foreground flex flex-col gap-6 rounded-xl border shadow-sm transition-shadow duration-200",r),...o})}export{e as C};
