@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -65,6 +65,8 @@ import {
   Search,
   UserCheck,
   Home,
+  ChevronLeft,
+  LayoutDashboard
 } from "lucide-react";
 import {
   useAdminPageModel,
@@ -79,8 +81,23 @@ type Section = "destinations" | "currency" | "tutorial" | "push" | "whitelist" |
 
 export function AdminWeb() {
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<Section>("destinations");
+  const [activeSection, setActiveSection] = useState<Section | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const {
     countryCodes,
@@ -201,98 +218,198 @@ export function AdminWeb() {
   } = useAdminPageModel();
 
   const sections = [
-    { id: "destinations" as Section, icon: Globe, label: "Popular Destinations" },
-    { id: "currency" as Section, icon: DollarSign, label: "Currency Settings" },
-    { id: "tutorial" as Section, icon: PlayCircle, label: "Home Tutorial Video" },
-    { id: "push" as Section, icon: BellRing, label: "Push Notifications" },
-    { id: "whitelist" as Section, icon: Filter, label: "Whitelist Settings" },
-    { id: "admins" as Section, icon: Shield, label: "Super Admin Settings" },
-    { id: "users" as Section, icon: Users, label: "Signed Users" },
-    { id: "reference" as Section, icon: Globe, label: "Country Codes Reference" },
+    { id: "destinations" as Section, icon: Globe, label: "Popular Destinations", description: "Manage countries on landing", color: "text-blue-600", bg: "bg-blue-50" },
+    { id: "currency" as Section, icon: DollarSign, label: "Currency Settings", description: "Exchange rates & markups", color: "text-green-600", bg: "bg-green-50" },
+    { id: "tutorial" as Section, icon: PlayCircle, label: "Home Tutorial Video", description: "Configure home video player", color: "text-purple-600", bg: "bg-purple-50" },
+    { id: "push" as Section, icon: BellRing, label: "Push Notifications", description: "Broadcast alerts to users", color: "text-orange-600", bg: "bg-orange-50" },
+    { id: "whitelist" as Section, icon: Filter, label: "Whitelist Settings", description: "Control access by code", color: "text-indigo-600", bg: "bg-indigo-50" },
+    { id: "admins" as Section, icon: Shield, label: "Super Admin Settings", description: "Manage admin permissions", color: "text-red-600", bg: "bg-red-50" },
+    { id: "users" as Section, icon: Users, label: "Signed Users", description: "User accounts & loyalty", color: "text-teal-600", bg: "bg-teal-50" },
+    { id: "reference" as Section, icon: Globe, label: "Country Codes Reference", description: "ISO code list", color: "text-gray-600", bg: "bg-gray-50" },
   ];
+
+  if (isMobile && !activeSection) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-background pb-12">
+        <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border px-6 py-8">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1967D2] to-[#114A99] flex items-center justify-center">
+                <Settings2 className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold dark:text-foreground">Admin Panel</h1>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+              <Home className="w-5 h-5" />
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-muted-foreground font-medium">Manage Tulip App infrastructure</p>
+        </header>
+
+        <main className="px-6 py-8">
+          <div className="grid grid-cols-1 gap-4">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className="flex items-center gap-4 p-5 bg-white dark:bg-card rounded-2xl border border-gray-100 dark:border-border shadow-sm hover:shadow-md transition-all active:scale-[0.98] text-left"
+                >
+                  <div className={`w-12 h-12 rounded-xl ${section.bg} flex items-center justify-center shrink-0`}>
+                    <Icon className={`w-6 h-6 ${section.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-foreground">{section.label}</h3>
+                    <p className="text-xs text-gray-500 dark:text-muted-foreground">{section.description}</p>
+                  </div>
+                  <ChevronLeft className="w-5 h-5 text-gray-300 rotate-180" />
+                </button>
+              );
+            })}
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-background">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? "w-64" : "w-0"
-        } transition-all duration-300 bg-white dark:bg-card border-r border-gray-200 dark:border-border flex flex-col overflow-hidden`}
-      >
-        <div className="p-6 border-b border-gray-200 dark:border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1967D2] to-[#114A99] flex items-center justify-center">
-              <Settings2 className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-gray-900 dark:text-foreground">Admin Panel</h1>
-              <p className="text-xs text-gray-500 dark:text-muted-foreground">Tulip Management</p>
+      {/* Sidebar - only show on desktop or if forced */}
+      {!isMobile && (
+        <aside
+          className={`${
+            sidebarOpen ? "w-64" : "w-0"
+          } transition-all duration-300 bg-white dark:bg-card border-r border-gray-200 dark:border-border flex flex-col overflow-hidden`}
+        >
+          <div className="p-6 border-b border-gray-200 dark:border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1967D2] to-[#114A99] flex items-center justify-center">
+                <Settings2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-gray-900 dark:text-foreground">Admin Panel</h1>
+                <p className="text-xs text-gray-500 dark:text-muted-foreground">Tulip Management</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <nav className="flex-1 overflow-y-auto p-3">
-          {sections.map((section) => {
-            const Icon = section.icon;
-            return (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors mb-1 ${
-                  activeSection === section.id
-                    ? "bg-blue-50 dark:bg-muted text-primary dark:text-blue-400"
-                    : "text-gray-700 dark:text-muted-foreground hover:bg-gray-100 dark:hover:bg-accent"
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="text-sm font-medium">{section.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+          <nav className="flex-1 overflow-y-auto p-3">
+            <button
+              onClick={() => setActiveSection(null)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors mb-1 ${
+                activeSection === null
+                  ? "bg-blue-50 dark:bg-muted text-primary dark:text-blue-400"
+                  : "text-gray-700 dark:text-muted-foreground hover:bg-gray-100 dark:hover:bg-accent"
+              }`}
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              <span className="text-sm font-medium">Dashboard Overview</span>
+            </button>
 
-        <div className="p-4 border-t border-gray-200 dark:border-border">
-          <p className="text-xs text-gray-500 dark:text-muted-foreground text-center">Tulip eSIM v1.0</p>
-          <p className="text-xs text-gray-400 dark:text-muted-foreground/60 text-center mt-1">Corevia Network</p>
-        </div>
-      </aside>
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors mb-1 ${
+                    activeSection === section.id
+                      ? "bg-blue-50 dark:bg-muted text-primary dark:text-blue-400"
+                      : "text-gray-700 dark:text-muted-foreground hover:bg-gray-100 dark:hover:bg-accent"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-sm font-medium">{section.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="p-4 border-t border-gray-200 dark:border-border">
+            <p className="text-xs text-gray-500 dark:text-muted-foreground text-center">Tulip eSIM v1.0</p>
+            <p className="text-xs text-gray-400 dark:text-muted-foreground/60 text-center mt-1">Corevia Network</p>
+          </div>
+        </aside>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border px-8 py-5 flex items-center justify-between">
+        <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border px-6 lg:px-8 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-accent rounded-lg transition-colors"
-            >
-              {sidebarOpen ? <X className="w-5 h-5 dark:text-foreground" /> : <Menu className="w-5 h-5 dark:text-foreground" />}
-            </button>
+            {isMobile ? (
+              <button
+                onClick={() => setActiveSection(null)}
+                className="p-2.5 rounded-lg bg-gray-50 dark:bg-muted hover:bg-gray-100 dark:hover:bg-accent transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6 dark:text-foreground" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-accent rounded-lg transition-colors"
+              >
+                {sidebarOpen ? <X className="w-5 h-5 dark:text-foreground" /> : <Menu className="w-5 h-5 dark:text-foreground" />}
+              </button>
+            )}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground">
-                {sections.find((s) => s.id === activeSection)?.label}
+                {sections.find((s) => s.id === activeSection)?.label || "Select Section"}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-muted-foreground">Manage app configuration and settings</p>
+              <p className="text-sm text-gray-500 dark:text-muted-foreground hidden sm:block">Manage app configuration and settings</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              onClick={() => navigate("/")}
-              className="gap-2 bg-gradient-to-r from-primary to-blue-600 dark:from-blue-600 dark:to-primary hover:from-primary-hover hover:to-blue-700 shadow-md"
-            >
-              <Home className="w-4 h-4" />
-              Go to App Home
-            </Button>
-            <Badge variant="secondary" className="gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Connected
-            </Badge>
+            {!isMobile && (
+              <>
+                <Button
+                  onClick={() => navigate("/")}
+                  className="gap-2 bg-gradient-to-r from-primary to-blue-600 dark:from-blue-600 dark:to-primary hover:from-primary-hover hover:to-blue-700 shadow-md"
+                >
+                  <Home className="w-4 h-4" />
+                  Go to App Home
+                </Button>
+                <Badge variant="secondary" className="gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Connected
+                </Badge>
+              </>
+            )}
           </div>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className={`flex-1 overflow-y-auto ${isMobile ? "p-5" : "p-8"}`}>
           <div className="max-w-6xl mx-auto">
+            {activeSection === null && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-2xl font-bold dark:text-white mb-2">Welcome back, Admin</h3>
+                  <p className="text-gray-500 dark:text-gray-400">Select a management module to begin</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {sections.map((section) => {
+                    const Icon = section.icon;
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
+                        className="flex flex-col items-start p-6 bg-white dark:bg-card rounded-2xl border border-gray-100 dark:border-border shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900 transition-all text-left"
+                      >
+                        <div className={`w-12 h-12 rounded-xl ${section.bg} flex items-center justify-center mb-4`}>
+                          <Icon className={`w-6 h-6 ${section.color}`} />
+                        </div>
+                        <h3 className="font-semibold text-gray-900 dark:text-foreground text-lg mb-1">{section.label}</h3>
+                        <p className="text-sm text-gray-500 dark:text-muted-foreground">{section.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {activeSection === "destinations" && (
               <PopularDestinationsSection
                 countryCodes={countryCodes}

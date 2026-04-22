@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { PlaneTakeoff, PlaneLanding, Calendar, User, ArrowRightLeft, ArrowLeft, Armchair } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Card } from "../../components/ui/card";
 import { AirportSelector } from "../../components/flights/AirportSelector";
 import { PassengerSelector, type PassengerCounts } from "../../components/flights/PassengerSelector";
@@ -14,6 +15,7 @@ type ActiveSheet = "none" | "origin" | "destination" | "dates" | "passengers" | 
 
 export function FlightSearchFlow() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [tripType, setTripType] = useState<TripType>("oneway");
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>("none");
   
@@ -58,7 +60,7 @@ export function FlightSearchFlow() {
           <button onClick={() => navigate("/")} className="p-2 -ml-2 rounded-full hover:bg-white/10 active:bg-white/20 transition-all text-white shadow-sm border border-transparent hover:border-white/20 active:scale-95">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-2xl font-semibold tracking-tight">Search Flights</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("Search Flights")}</h1>
         </div>
       </header>
 
@@ -74,13 +76,13 @@ export function FlightSearchFlow() {
             className={`flex-1 relative z-10 py-1.5 text-sm font-medium transition-colors ${tripType === "oneway" ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
             onClick={() => setTripType("oneway")}
           >
-            One Way
+            {t("One Way")}
           </button>
           <button 
             className={`flex-1 relative z-10 py-1.5 text-sm font-medium transition-colors ${tripType === "roundtrip" ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
             onClick={() => setTripType("roundtrip")}
           >
-            Round Trip
+            {t("Round Trip")}
           </button>
         </div>
 
@@ -93,11 +95,11 @@ export function FlightSearchFlow() {
             <div className="flex items-center gap-4 group cursor-pointer" onClick={() => setActiveSheet("origin")}>
               <PlaneTakeoff className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
               <div>
-                <p className="text-xs text-gray-500 font-medium mb-0.5">From</p>
+                <p className="text-xs text-gray-500 font-medium mb-0.5">{t("From")}</p>
                 {origin ? (
                   <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{origin.city} <span className="text-gray-400 font-medium text-sm ml-1">{origin.code}</span></p>
                 ) : (
-                  <p className="text-lg font-semibold text-gray-400 dark:text-gray-500">Select city or airport</p>
+                  <p className="text-lg font-semibold text-gray-400 dark:text-gray-500">{t("Select city or airport")}</p>
                 )}
               </div>
             </div>
@@ -116,11 +118,11 @@ export function FlightSearchFlow() {
             <div className="flex items-center gap-4 group cursor-pointer" onClick={() => setActiveSheet("destination")}>
               <PlaneLanding className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
               <div>
-                <p className="text-xs text-gray-500 font-medium mb-0.5">To</p>
+                <p className="text-xs text-gray-500 font-medium mb-0.5">{t("To")}</p>
                 {destination ? (
                   <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{destination.city} <span className="text-gray-400 font-medium text-sm ml-1">{destination.code}</span></p>
                 ) : (
-                  <p className="text-lg font-semibold text-gray-400 dark:text-gray-500">Select destination</p>
+                  <p className="text-lg font-semibold text-gray-400 dark:text-gray-500">{t("Select destination")}</p>
                 )}
               </div>
             </div>
@@ -134,9 +136,9 @@ export function FlightSearchFlow() {
             >
               <Calendar className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs text-gray-500 font-medium mb-0.5">Departure</p>
+                <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Departure")}</p>
                 <p className={`text-base font-semibold truncate ${dateRange?.from ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}`}>
-                  {dateRange?.from ? format(dateRange.from, "EEE, d MMM") : "Select date"}
+                  {dateRange?.from ? format(dateRange.from, "EEE, d MMM") : t("Select date")}
                 </p>
               </div>
             </div>
@@ -147,9 +149,9 @@ export function FlightSearchFlow() {
                 onClick={() => setActiveSheet("dates")}
               >
                 <div className="min-w-0 pl-1">
-                  <p className="text-xs text-gray-500 font-medium mb-0.5">Return</p>
+                  <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Return")}</p>
                   <p className={`text-base font-semibold truncate ${dateRange?.to ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}`}>
-                    {dateRange?.to ? format(dateRange.to, "EEE, d MMM") : "Add date"}
+                    {dateRange?.to ? format(dateRange.to, "EEE, d MMM") : t("Add date")}
                   </p>
                 </div>
               </div>
@@ -164,7 +166,7 @@ export function FlightSearchFlow() {
             >
               <User className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors shrink-0" />
               <div className="min-w-0 pl-1">
-                <p className="text-xs text-gray-500 font-medium mb-0.5">Passengers</p>
+                <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Passengers")}</p>
                 <p className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {totalPassengers}
                 </p>
@@ -177,9 +179,9 @@ export function FlightSearchFlow() {
             >
               <Armchair className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors shrink-0" />
               <div className="min-w-0 pl-1">
-                <p className="text-xs text-gray-500 font-medium mb-0.5">Cabin</p>
+                <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Cabin")}</p>
                 <p className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
-                  {cabin}
+                  {t(cabin)}
                 </p>
               </div>
             </div>
@@ -193,7 +195,7 @@ export function FlightSearchFlow() {
             onClick={handleSearch}
             className="w-full bg-[#1967D2] text-white rounded-xl py-3.5 font-semibold text-lg shadow-lg shadow-blue-500/30 hover:bg-[#1557B0] active:scale-[0.98] transition-all disabled:opacity-50 disabled:shadow-none"
           >
-            Search Flights
+            {t("Search Flights")}
           </button>
         </div>
       </main>

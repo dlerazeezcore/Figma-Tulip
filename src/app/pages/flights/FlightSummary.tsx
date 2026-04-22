@@ -3,10 +3,12 @@ import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, CheckCircle2, Plane, Clock, ShieldCheck, ArrowRightLeft } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { format } from "date-fns";
+import { useCurrency } from "../../utils/currency";
 
 export function FlightSummary() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { formatPrice } = useCurrency();
   const { tripType, outboundSelection, returnSelection, origin, destination, dateRange } = location.state || {};
 
   // Construct view models from state or fallback to mock
@@ -173,7 +175,7 @@ export function FlightSummary() {
               <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-0.5">Total for 1 Passenger</p>
               <p className="text-xs text-gray-400">Includes taxes and fees</p>
             </div>
-            <p className="text-2xl font-extrabold text-[#1967D2] dark:text-[#5e96f2]">€{totalPrice.toFixed(2)}</p>
+            <p className="text-2xl font-extrabold text-[#1967D2] dark:text-[#5e96f2]">{formatPrice(totalPrice)}</p>
           </div>
           <button 
             className="w-full bg-[#1967D2] text-white rounded-xl py-4 font-bold text-lg hover:bg-[#1557B0] active:scale-[0.98] transition-all shadow-[0_8px_20px_rgba(25,103,210,0.3)]"

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
 import { ArrowLeft, Check, Info, AlertCircle, X } from "lucide-react";
+import { useCurrency } from "../../utils/currency";
 
 // Mock data to match previous
 const currentFlightMockData = {
@@ -57,6 +58,7 @@ export function FareFamilySelection() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { formatPrice } = useCurrency();
   
   const { tripType, phase = "outbound", origin, destination } = location.state || {};
   const isReturnPhase = phase === "return";
@@ -150,7 +152,7 @@ export function FareFamilySelection() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-0.5">Total</p>
-                    <p className="text-xl font-extrabold text-gray-900 dark:text-white">€{fare.price.toFixed(2)}</p>
+                    <p className="text-xl font-extrabold text-gray-900 dark:text-white">{formatPrice(fare.price)}</p>
                   </div>
                 </div>
 

@@ -4,6 +4,9 @@ import { Switch } from "../components/ui/switch";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { useTheme } from "next-themes";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
+import { useUserPreferences, Currency, Language } from "../store/user-preferences";
 import {
   ChevronRight,
   User,
@@ -15,11 +18,16 @@ import {
   UserPlus,
   Shield,
   Moon,
+  Globe,
+  DollarSign
 } from "lucide-react";
 import { AuthModal } from "../components/auth/AuthModal";
 import { useSettingsPageModel } from "../wiring/settings-page-service";
 
 export function Settings() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { language, setLanguage, currency, setCurrency } = useUserPreferences();
   const {
     notifications,
     dataWarning,
@@ -55,8 +63,8 @@ export function Settings() {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
         
         <div className="relative z-10">
-          <h1 className="text-2xl mb-1">Profile</h1>
-          <p className="text-sm text-white/90">Manage your account & preferences</p>
+          <h1 className="text-2xl mb-1">{t("Profile")}</h1>
+          <p className="text-sm text-white/90">{t("Manage your account & preferences")}</p>
         </div>
       </header>
 
@@ -83,20 +91,29 @@ export function Settings() {
       <section className="px-5 mb-5">
         <div className="flex items-center gap-2 mb-2.5 px-1">
           <Shield className="w-3.5 h-3.5 text-gray-400" />
-          <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider">Account</h2>
+          <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider">{t("Account")}</h2>
         </div>
         <div className="rounded-2xl bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border divide-y divide-gray-100 dark:divide-border overflow-hidden">
+          {isAdmin && (
+            <SettingsItem
+              icon={<Shield className="w-5 h-5 text-red-600" />}
+              label="Admin Panel"
+              subtitle="Manage app configuration"
+              onClick={() => navigate("/admin-web")}
+              iconBg="bg-red-50"
+            />
+          )}
           <SettingsItem
             icon={<User className="w-5 h-5 text-blue-600" />}
-            label="Personal Information"
-            subtitle="View and edit your details"
+            label={t("Personal Information")}
+            subtitle={t("View and edit your details")}
             onClick={openPersonalInformation}
             iconBg="bg-blue-50"
           />
           <SettingsItem
             icon={<FileText className="w-5 h-5 text-purple-400" />}
-            label="Order History"
-            subtitle="Coming soon"
+            label={t("Order History")}
+            subtitle={t("Coming soon")}
             onClick={() => {}}
             iconBg="bg-purple-50"
             disabled
@@ -108,9 +125,60 @@ export function Settings() {
       <section className="px-5 mb-5">
         <div className="flex items-center gap-2 mb-2.5 px-1">
           <Bell className="w-3.5 h-3.5 text-gray-400" />
-          <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider">Preferences</h2>
+          <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider">{t("Preferences")}</h2>
         </div>
         <div className="rounded-2xl bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border divide-y divide-gray-100 dark:divide-border overflow-hidden">
+          
+          {/* Language Selector */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
+                <Globe className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <Label htmlFor="language" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
+                  {t("Language")}
+                </Label>
+              </div>
+            </div>
+            <select
+              id="language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as Language)}
+              className="bg-transparent border-none text-right focus:ring-0 text-sm font-medium text-gray-700 dark:text-foreground outline-none"
+            >
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+
+          {/* Currency Selector */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <Label htmlFor="currency" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
+                  {t("Currency")}
+                </Label>
+              </div>
+            </div>
+            <select
+              id="currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as Currency)}
+              className="bg-transparent border-none text-right focus:ring-0 text-sm font-medium text-gray-700 dark:text-foreground outline-none"
+            >
+              <option value="IQD">IQD (د.ع)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+          </div>
+
+          {/* Notifications Toggle */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
@@ -118,9 +186,9 @@ export function Settings() {
               </div>
               <div>
                 <Label htmlFor="notifications" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
-                  Push Notifications
+                  {t("Push Notifications")}
                 </Label>
-                <p className="text-[12px] text-gray-500 dark:text-muted-foreground">Get updates about your eSIMs</p>
+                <p className="text-[12px] text-gray-500 dark:text-muted-foreground">{t("Get updates about your eSIMs")}</p>
               </div>
             </div>
             <Switch
@@ -137,9 +205,9 @@ export function Settings() {
               </div>
               <div>
                 <Label htmlFor="dark-mode" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
-                  Dark Mode
+                  {t("Dark Mode")}
                 </Label>
-                <p className="text-[12px] text-gray-500 dark:text-muted-foreground">Adjust the app's appearance</p>
+                <p className="text-[12px] text-gray-500 dark:text-muted-foreground">{t("Adjust the app's appearance")}</p>
               </div>
             </div>
             <Switch
@@ -155,13 +223,13 @@ export function Settings() {
       <section className="px-5 mb-5">
         <div className="flex items-center gap-2 mb-2.5 px-1">
           <MessageCircle className="w-3.5 h-3.5 text-gray-400" />
-          <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider">Support</h2>
+          <h2 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider">{t("Support")}</h2>
         </div>
         <div className="rounded-2xl bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border overflow-hidden">
           <SettingsItem
             icon={<MessageCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
-            label="Chat with Support"
-            subtitle="Get help from our team"
+            label={t("Chat with Support")}
+            subtitle={t("Get help from our team")}
             onClick={openSupportChat}
             iconBg="bg-indigo-50 dark:bg-indigo-900/20"
           />
@@ -170,7 +238,7 @@ export function Settings() {
 
       {/* Footer */}
       <section className="px-5 mb-5">
-        <p className="text-center text-[12px] text-gray-400 dark:text-muted-foreground/60">Brought to you by Corevia Network</p>
+        <p className="text-center text-[12px] text-gray-400 dark:text-muted-foreground/60">{t("Brought to you by Corevia Network")}</p>
       </section>
 
       {/* Auth / Logout */}
@@ -181,7 +249,7 @@ export function Settings() {
             onClick={logout}
           >
             <LogOut className="w-4 h-4" />
-            Log Out
+            {t("Log Out")}
           </button>
         ) : (
           <div className="flex gap-3">
@@ -190,7 +258,7 @@ export function Settings() {
               onClick={openLogin}
             >
               <LogIn className="w-4 h-4" />
-              Log In
+              {t("Log In")}
             </Button>
             <Button
               variant="outline"
@@ -198,7 +266,7 @@ export function Settings() {
               onClick={openSignup}
             >
               <UserPlus className="w-4 h-4" />
-              Sign Up
+              {t("Sign Up")}
             </Button>
           </div>
         )}

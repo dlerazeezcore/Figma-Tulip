@@ -142,8 +142,8 @@ function buildLocalCountries(): PlansDestination[] {
 const FALLBACK_COUNTRIES: PlansDestination[] = sortDestinations(buildLocalCountries());
 
 function normalizeDestinationRow(row: any): PlansDestination {
-  const code = String(row?.code || row?.iso || "").trim();
-  const type = String(row?.type || "").toLowerCase() === "regional" || code.startsWith("region-") ? "regional" : "country";
+  const code = String(row?.code || row?.iso || row?.country_code || "").trim();
+  const type = String(row?.type || "").toLowerCase() === "regional" || code.length > 2 || code.startsWith("region-") ? "regional" : "country";
   const rawName = String(row?.name || row?.country_name || code || "Unknown").trim();
   const normalizedCode = code.toUpperCase();
   const expandedName =
@@ -157,14 +157,14 @@ function normalizeDestinationRow(row: any): PlansDestination {
     flag: resolveDisplayFlag(row?.flag || row?.emoji, normalizedCode),
     code,
     type,
-    priceFrom: toNumber(row?.priceFrom ?? row?.price_from, 0),
+    priceFrom: toNumber(row?.priceFrom ?? row?.price_from ?? row?.min_price ?? row?.price, 0),
     plansCount: toNumber(row?.plansCount ?? row?.plans, 0),
   };
 }
 
 function normalizeBundleRow(row: any, index: number): PlansBundle {
-  const id = String(row?.id ?? row?.bundleName ?? `bundle-${index + 1}`);
-  const data = toNumber(row?.data ?? row?.dataGB, 0);
+  const id = String(row?.id ?? row?.bundleName ?? row?.bundle_name ?? `bundle-${index + 1}`);
+  const data = toNumber(row?.data ?? row?.dataGB ?? row?.data_gb ?? row?.volume, 0);
   const perDayKeywordSource = buildPerDayKeywordSource(row, id);
   const fromKeyword = /(^|[\s/_-])(daily|perday|per day|day pass|daypass|\/day)([\s/_-]|$)/.test(perDayKeywordSource);
   const fromFlag = Boolean(
@@ -224,8 +224,8 @@ function normalizeBundleRow(row: any, index: number): PlansBundle {
   return {
     id,
     data,
-    validity: toNumber(row?.validity ?? row?.durationDays, 0),
-    price: toNumber(row?.price, 0),
+    validity: toNumber(row?.validity ?? row?.durationDays ?? row?.duration_days ?? row?.days, 0),
+    price: toNumber(row?.price ?? row?.bundle_price, 0),
     unlimited,
     isPerDay,
     dataLabel: formatDataAllowance(data, { unlimited, perDay: isPerDay }),
@@ -261,12 +261,7 @@ function isEsimAccessOffer(row: any): boolean {
 }
 
 function isVisibleBundleRow(row: any): boolean {
-  const mode = String(row?.allowanceMode ?? row?.allowance_mode ?? "").trim().toLowerCase();
-  if (mode === "per_day" || mode === "perday") {
-    return false;
-  }
-
-  const id = String(row?.id ?? row?.bundleName ?? "").trim();
+  const id = String(row?.id ?? row?.bundleName ?? row?.bundle_name ?? "").trim();
   const keywordSource = buildPerDayKeywordSource(row, id);
   return !/(^|[\s/_-])(daily|perday|per day|day pass|daypass|\/day)([\s/_-]|$)/.test(keywordSource);
 }
@@ -597,7 +592,6 @@ export async function loadBundlesForDestination(destination: PlansDestination): 
   const normalized = sourceRows
     .filter(isVisibleBundleRow)
     .map(normalizeBundleRow)
-    .filter((bundle) => !bundle.isPerDay)
     .filter((bundle) => bundle.data > 0 && bundle.validity > 0 && bundle.price > 0);
 
   return dedupeBundlesByValidityAndData(normalized).sort((a, b) =>
@@ -651,9 +645,7 @@ export function usePlansPageModel(): PlansPageModel {
   const [selectedDestination, setSelectedDestination] = useState<PlansDestination | null>(null);
   const [bundles, setBundles] = useState<PlansBundle[]>([]);
   const [selectedBundleId, setSelectedBundleId] = useState("");
-  const [isLoadingDestinations, setIsLoadingDestinations] = useState(
-    immediateContext.countries.length === 0 && immediateContext.regions.length === 0,
-  );
+  const [isLoadingDestinations, setIsLoadingDestinations] = useState(true);
   const [isLoadingBundles, setIsLoadingBundles] = useState(false);
   const [exchangeRate, setExchangeRate] = useState(immediateContext.exchangeRate);
   const [markupPercent, setMarkupPercent] = useState(immediateContext.markupPercent);

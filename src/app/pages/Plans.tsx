@@ -1,17 +1,20 @@
 import { ChevronLeft, ChevronRight, Globe, Search, X, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AuthModal } from "../components/auth/AuthModal";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { CountryFlag } from "../components/ui/country-flag";
 import { Input } from "../components/ui/input";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
-import { convertUsdToIqd, formatIqd } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 import {
   usePlansPageModel,
 } from "../wiring/plans-page-service";
 
 export function Plans() {
+  const { t } = useTranslation();
+  const { formatPrice, currency: selectedCurrency } = useCurrency();
   const {
     searchQuery,
     selectedDestination,
@@ -194,7 +197,7 @@ export function Plans() {
                             </div>
                             <div className="text-right flex-shrink-0">
                               <div className="text-xl font-bold text-gray-900 dark:text-foreground whitespace-nowrap mb-0.5">
-                                {formatIqd(convertUsdToIqd(bundle.price, exchangeRate, markupPercent))} IQD
+                                {formatPrice(bundle.price)}
                               </div>
                               {isSelected && (
                                 <span className="text-xs text-primary font-medium">Selected</span>
@@ -374,9 +377,9 @@ export function Plans() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-white mb-1 text-base tracking-tight drop-shadow-lg">{destination.name}</h3>
-                        {preview.priceFrom > 0 ? (
+                        {preview.plansCount > 0 ? (
                           <p className="text-sm text-white/95 font-medium drop-shadow-md">
-                            From {formatIqd(convertUsdToIqd(preview.priceFrom, exchangeRate, markupPercent))} IQD
+                            From {formatPrice(preview.priceFrom)}
                           </p>
                         ) : (
                           <p className="text-sm text-white/95 font-medium drop-shadow-md">Plans available</p>

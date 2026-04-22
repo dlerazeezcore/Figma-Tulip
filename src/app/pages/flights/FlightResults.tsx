@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, Clock, Filter, SlidersHorizontal, Plane, CheckCircle2 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { format } from "date-fns";
+import { useCurrency } from "../../utils/currency";
 
 // Used mock data from specification
 const mockResults = [
@@ -53,6 +54,7 @@ function formatTime(iso: string) {
 export function FlightResults() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { formatPrice } = useCurrency();
   const { tripType, dateRange, passengers, cabin, origin, destination, phase = "outbound", outboundSelection } = location.state || {
     tripType: "oneway",
     dateRange: { from: new Date("2024-06-01") },
@@ -155,7 +157,7 @@ export function FlightResults() {
                   <CheckCircle2 className="w-5 h-5 text-green-500"/>
                   <div>
                     <span className="text-sm font-semibold">{origin?.code || "EBL"} → {destination?.code || "DUS"}</span>
-                    <p className="text-xs text-gray-500 font-medium">Selected • €{outboundSelection.basePrice.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500 font-medium">Selected • {formatPrice(outboundSelection.basePrice)}</p>
                   </div>
                 </div>
                 <button 
@@ -226,7 +228,7 @@ export function FlightResults() {
             <div className="flex justify-end items-end pt-3 border-t border-gray-100 dark:border-border">
               <div className="text-right">
                 <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-0.5">From</p>
-                <p className="text-xl font-extrabold text-[#1967D2] dark:text-[#5e96f2]">€{flight.basePrice.toFixed(2)}</p>
+                <p className="text-xl font-extrabold text-[#1967D2] dark:text-[#5e96f2]">{formatPrice(flight.basePrice)}</p>
               </div>
             </div>
           </Card>
