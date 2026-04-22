@@ -14,7 +14,12 @@ async function generate() {
   if (!fs.existsSync(iosIconDir)) fs.mkdirSync(iosIconDir, { recursive: true });
 
   await sharp(SVG_SOURCE)
-    .resize(1024, 1024)
+    .trim()
+    .resize(920, 920, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+    .extend({
+      top: 52, bottom: 52, left: 52, right: 52,
+      background: '#FFFFFF'
+    })
     .flatten({ background: '#FFFFFF' })
     .png()
     .toFile(iosPath);
@@ -36,13 +41,29 @@ async function generate() {
 
     // Legacy Icons (Solid background white)
     await sharp(SVG_SOURCE)
-      .resize(map.size, map.size)
+      .trim()
+      .resize(Math.floor(map.size * 0.9), Math.floor(map.size * 0.9), { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .extend({
+        top: Math.floor(map.size * 0.05),
+        bottom: Math.ceil(map.size * 0.05),
+        left: Math.floor(map.size * 0.05),
+        right: Math.ceil(map.size * 0.05),
+        background: '#FFFFFF'
+      })
       .flatten({ background: '#FFFFFF' })
       .png()
       .toFile(path.join(dir, 'ic_launcher.png'));
     
     await sharp(SVG_SOURCE)
-      .resize(map.size, map.size)
+      .trim()
+      .resize(Math.floor(map.size * 0.9), Math.floor(map.size * 0.9), { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .extend({
+        top: Math.floor(map.size * 0.05),
+        bottom: Math.ceil(map.size * 0.05),
+        left: Math.floor(map.size * 0.05),
+        right: Math.ceil(map.size * 0.05),
+        background: '#FFFFFF'
+      })
       .flatten({ background: '#FFFFFF' })
       .png()
       .toFile(path.join(dir, 'ic_launcher_round.png'));
@@ -71,11 +92,14 @@ async function generate() {
       const foregroundPath = path.join(dir, 'ic_launcher_foreground.png');
       
       // Icon should be centered in 108dp box. 
-      // Safe zone is usually 66dp. We'll use 72dp (approx 66%) for the logo content.
-      const contentSize = Math.floor(map.size * 0.65);
+      // Safe zone is 66dp of 108dp (approx 61%).
+      // We'll use 78% of the box for the logo content to make it "bigger", 
+      // but warn that it might be slightly clipped on some mask shapes.
+      const contentSize = Math.floor(map.size * 0.78);
       
       await sharp(SVG_SOURCE)
-        .resize(contentSize, contentSize)
+        .trim()
+        .resize(contentSize, contentSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .extend({
           top: Math.floor((map.size - contentSize) / 2),
           bottom: Math.ceil((map.size - contentSize) / 2),

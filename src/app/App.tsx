@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RouterProvider } from "react-router";
 import { Toaster } from "./components/ui/sonner";
+import { SplashScreen as NativeSplashScreen } from "@capacitor/splash-screen";
 import { InitSuperAdmin } from "./components/InitSuperAdmin";
 import { SplashScreen } from "./components/SplashScreen";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -16,6 +17,13 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    // Hide native splash screen as soon as possible
+    if (isNativeApp()) {
+      void NativeSplashScreen.hide().catch((err) => {
+        console.warn("Failed to hide native splash:", err);
+      });
+    }
+
     // Ensure viewport meta prevents iOS input zoom and supports safe areas
     let meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
     if (meta) {
