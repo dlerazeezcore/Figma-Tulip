@@ -25,7 +25,7 @@ import { AuthModal } from "../components/auth/AuthModal";
 import { useSettingsPageModel } from "../wiring/settings-page-service";
 
 export function Settings() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { language, setLanguage, currency, setCurrency } = useUserPreferences();
   const {
@@ -135,7 +135,7 @@ export function Settings() {
               <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
                 <Globe className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               </div>
-              <div>
+              <div className="text-start">
                 <Label htmlFor="language" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
                   {t("Language")}
                 </Label>
@@ -143,7 +143,7 @@ export function Settings() {
             </div>
             <select
               id="language"
-              value={language}
+              value={i18n.language}
               onChange={(e) => setLanguage(e.target.value as Language)}
               className="bg-transparent border-none text-end focus:ring-0 text-sm font-medium text-gray-700 dark:text-foreground outline-none"
             >
@@ -161,7 +161,7 @@ export function Settings() {
               <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
-              <div>
+              <div className="text-start">
                 <Label htmlFor="currency" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
                   {t("Currency")}
                 </Label>
@@ -186,7 +186,7 @@ export function Settings() {
               <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
                 <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <div>
+              <div className="text-start">
                 <Label htmlFor="notifications" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
                   {t("Push Notifications")}
                 </Label>
@@ -205,7 +205,7 @@ export function Settings() {
               <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
                 <Moon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
-              <div>
+              <div className="text-start">
                 <Label htmlFor="dark-mode" className="cursor-pointer font-medium text-gray-900 dark:text-foreground">
                   {t("Dark Mode")}
                 </Label>

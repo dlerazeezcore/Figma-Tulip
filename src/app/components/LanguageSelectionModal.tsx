@@ -3,16 +3,19 @@ import { useTranslation } from "react-i18next";
 import { Globe, Check, X } from "lucide-react";
 import { Button } from "./ui/button";
 
+import { useUserPreferences } from "../store/user-preferences";
+
 const LANGUAGES = [
   { code: 'en', name: 'English', dir: 'ltr' },
+  { code: 'ku', name: 'کوردی', dir: 'rtl' },
+  { code: 'ar', name: 'العربية', dir: 'rtl' },
   { code: 'fr', name: 'Français', dir: 'ltr' },
   { code: 'es', name: 'Español', dir: 'ltr' },
-  { code: 'ar', name: 'العربية', dir: 'rtl' },
-  { code: 'ku', name: 'کوردی', dir: 'rtl' },
 ];
 
 export function LanguageSelectionModal() {
   const { t, i18n } = useTranslation();
+  const { setLanguage } = useUserPreferences();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLang, setSelectedLang] = useState(i18n.language || 'en');
 
@@ -28,7 +31,7 @@ export function LanguageSelectionModal() {
   };
 
   const handleConfirm = () => {
-    i18n.changeLanguage(selectedLang);
+    setLanguage(selectedLang as any);
     const langObj = LANGUAGES.find(l => l.code === selectedLang);
     if (langObj) {
       document.documentElement.dir = langObj.dir;

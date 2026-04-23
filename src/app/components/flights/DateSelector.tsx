@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { DayPicker, DateRange } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { format } from "date-fns";
-import { enUS, ar, es, fr } from 'date-fns/locale';
+import { enUS, ar, es, fr, ckb } from 'date-fns/locale';
 
-const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: ar }; // Kurdish (Sorani) uses Arabic script, common to use ar if specific ku not available in date-fns
+const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: enUS }; // Kurdish uses English day names in calendar as requested
 
 export function DateSelector({
   open,

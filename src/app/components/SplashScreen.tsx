@@ -156,7 +156,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
                   <img 
                     src={tulipLogo}
                     alt="Tulip" 
-                    className="w-[85%] h-[85%] object-contain drop-shadow-md"
+                    className="w-[101%] h-[101%] object-contain drop-shadow-md"
                     onError={() => setLogoFailed(true)}
                   />
                 ) : (

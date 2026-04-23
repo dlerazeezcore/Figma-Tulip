@@ -7,6 +7,7 @@ import { InitSuperAdmin } from "./components/InitSuperAdmin";
 import { SplashScreen } from "./components/SplashScreen";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { LanguageSelectionModal } from "./components/LanguageSelectionModal";
+import { useUserPreferences } from "./store/user-preferences";
 import { router } from "./routes";
 import { addAuthSessionChangeListener } from "./wiring/session";
 import { addAppUrlOpenListener, closeNativeBrowser, getRouteFromAppUrl, isNativeApp } from "./utils/native-payment";
@@ -18,6 +19,14 @@ async function loadPushNotificationsService() {
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const { i18n } = useTranslation();
+  const { language } = useUserPreferences();
+
+  useEffect(() => {
+    // Sync i18n with stored preference on boot and when preference changes
+    if (i18n.language !== language) {
+      i18n.changeLanguage(language);
+    }
+  }, [language, i18n]);
 
   useEffect(() => {
     // Sync document direction with language

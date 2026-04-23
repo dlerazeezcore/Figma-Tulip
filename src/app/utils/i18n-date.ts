@@ -1,7 +1,7 @@
 import { format } from "date-fns";
-import { enUS, ar, es, fr } from "date-fns/locale";
+import { enUS, ar, es, fr, ckb } from "date-fns/locale";
 
-const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: ar };
+const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: ckb };
 
 /**
  * Formats a date string respecting the language code, with special handling for Kurdish.
