@@ -2293,14 +2293,7 @@ export function syncPushDevice(payload: {
         locale: toString(payload?.locale) || undefined,
         timezone: getCurrentTimezoneName() || undefined,
         userId: payload?.userId !== undefined ? String(payload.userId) : undefined,
-        user_id: payload?.userId !== undefined ? String(payload.userId) : undefined,
         notificationsEnabled: notificationsEnabled,
-        notifications_enabled: notificationsEnabled,
-        customFields: {
-          installId: deviceId || undefined,
-          userId: toString(payload?.userId) || undefined,
-          notificationsEnabled: notificationsEnabled,
-        },
       },
     });
 
@@ -2331,6 +2324,7 @@ export function unregisterPushDevice(payload: {
       body: {
         token: toString(payload?.token) || undefined,
         deviceId: toString(payload?.installId) || undefined,
+        installId: toString(payload?.installId) || undefined,
       },
     });
 
@@ -2507,10 +2501,13 @@ export function sendPushNotification(payload: {
           body,
           userIds: targetUserIds,
           user_ids: targetUserIds,
+          includeUserIds: targetUserIds,
           audience: null,
           sendToAllActive: false,
           send_to_all_active: false,
           tokens: [],
+          route: inAppRoute || undefined,
+          externalUrl: externalUrl || undefined,
           data: {
             kind,
             audience: effectiveAudience,
@@ -2529,7 +2526,10 @@ export function sendPushNotification(payload: {
           channel_id: kind,
           userIds: [],
           user_ids: [],
+          includeUserIds: [],
           tokens: directTokens,
+          route: inAppRoute || undefined,
+          externalUrl: externalUrl || undefined,
           data: {
             kind,
             audience: effectiveAudience,
