@@ -5,9 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Card } from "../../components/ui/card";
 import { format } from "date-fns";
 import { useCurrency } from "../../utils/currency";
-import { enUS, ar, es, fr } from 'date-fns/locale';
-
-const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: ar };
+import { formatLocalizedDate } from "../../utils/i18n-date";
 
 export function FlightSummary() {
   const navigate = useNavigate();
@@ -15,7 +13,6 @@ export function FlightSummary() {
   const { t, i18n: i18nInstance } = useTranslation();
   const { formatPrice } = useCurrency();
   const isRTL = document.documentElement.dir === 'rtl';
-  const currentLocale = locales[i18nInstance.language] || locales.en;
 
   const { tripType, outboundSelection, returnSelection, origin, destination, dateRange, passengers } = location.state || {
     passengers: { adults: 1, children: 0, infants: 0 }
@@ -81,7 +78,7 @@ export function FlightSummary() {
                 <Plane className={`w-3 h-3 text-gray-500 ${isRTL ? '-scale-x-100' : ''}`} />
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{t("Outbound")}</span>
               </div>
-              <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{format(new Date(displayOutbound.date), "EEE, d MMM", { locale: currentLocale })}</span>
+              <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{formatLocalizedDate(new Date(displayOutbound.date), i18nInstance.language, "full")}</span>
             </div>
 
             <div className="flex gap-4">
@@ -137,7 +134,7 @@ export function FlightSummary() {
                     <Plane className="w-3 h-3 text-gray-500 rotate-180" />
                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{t("Return")}</span>
                   </div>
-                  <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{format(new Date(returnLeg.date), "EEE, d MMM", { locale: currentLocale })}</span>
+                  <span className="text-sm font-semibold text-[#1967D2] dark:text-[#5e96f2]">{formatLocalizedDate(new Date(returnLeg.date), i18nInstance.language, "full")}</span>
                 </div>
 
                 <div className="flex gap-4">

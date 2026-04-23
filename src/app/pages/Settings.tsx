@@ -71,7 +71,7 @@ export function Settings() {
       {/* Profile Card */}
       <section className="px-5 mt-5 mb-5">
         <button
-          className="flex w-full items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border text-left hover:shadow-md transition-shadow"
+          className="flex w-full items-center gap-4 p-4 rounded-2xl bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border text-start hover:shadow-md transition-shadow"
           onClick={openPersonalInformation}
         >
           <Avatar className="w-14 h-14 shadow-md">
@@ -83,7 +83,7 @@ export function Settings() {
             <h3 className="font-semibold text-gray-900 dark:text-foreground truncate">{userName}</h3>
             <p className="text-[13px] text-gray-500 dark:text-muted-foreground truncate">{userPhone}</p>
           </div>
-          <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
+          <ChevronRight className={`w-5 h-5 text-gray-400 shrink-0 ${document.documentElement.dir === 'rtl' ? 'rotate-180' : ''}`} />
         </button>
       </section>
 
@@ -145,7 +145,7 @@ export function Settings() {
               id="language"
               value={language}
               onChange={(e) => setLanguage(e.target.value as Language)}
-              className="bg-transparent border-none text-right focus:ring-0 text-sm font-medium text-gray-700 dark:text-foreground outline-none"
+              className="bg-transparent border-none text-end focus:ring-0 text-sm font-medium text-gray-700 dark:text-foreground outline-none"
             >
               <option value="en">English</option>
               <option value="es">Español</option>
@@ -171,7 +171,7 @@ export function Settings() {
               id="currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value as Currency)}
-              className="bg-transparent border-none text-right focus:ring-0 text-sm font-medium text-gray-700 dark:text-foreground outline-none"
+              className="bg-transparent border-none text-end focus:ring-0 text-sm font-medium text-gray-700 dark:text-foreground outline-none"
             >
               <option value="IQD">IQD (د.ع)</option>
               <option value="USD">USD ($)</option>
@@ -312,12 +312,12 @@ function SettingsItem({
         <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center`}>
           {icon}
         </div>
-        <div className="text-left">
+        <div className="text-start">
           <div className="font-medium text-gray-900 dark:text-foreground">{label}</div>
           {subtitle && <p className="text-[12px] text-gray-500 dark:text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
-      <ChevronRight className="w-4 h-4 text-gray-400" />
+      <ChevronRight className={`w-4 h-4 text-gray-400 ${document.documentElement.dir === 'rtl' ? 'rotate-180' : ''}`} />
     </button>
   );
 }

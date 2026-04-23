@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { InitSuperAdmin } from "./components/InitSuperAdmin";
 import { SplashScreen } from "./components/SplashScreen";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { LanguageSelectionModal } from "./components/LanguageSelectionModal";
 import { router } from "./routes";
 import { addAuthSessionChangeListener } from "./wiring/session";
 import { addAppUrlOpenListener, closeNativeBrowser, getRouteFromAppUrl, isNativeApp } from "./utils/native-payment";
@@ -171,6 +172,7 @@ export default function App() {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <LanguageSelectionModal />
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
       <InitSuperAdmin />
       <RouterProvider router={router} />

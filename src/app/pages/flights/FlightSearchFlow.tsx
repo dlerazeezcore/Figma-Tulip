@@ -10,12 +10,13 @@ import { DateSelector } from "../../components/flights/DateSelector";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import type { Airport, TripType } from "../../types/flights";
+import { formatLocalizedDate } from "../../utils/i18n-date";
 
 type ActiveSheet = "none" | "origin" | "destination" | "dates" | "passengers" | "cabin";
 
 export function FlightSearchFlow() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tripType, setTripType] = useState<TripType>("oneway");
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>("none");
   
@@ -144,7 +145,7 @@ export function FlightSearchFlow() {
               <div className="min-w-0">
                 <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Departure")}</p>
                 <p className={`text-base font-semibold truncate ${dateRange?.from ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}`}>
-                  {dateRange?.from ? format(dateRange.from, "EEE, d MMM") : t("Select date")}
+                  {dateRange?.from ? formatLocalizedDate(dateRange.from, i18n.language, "full") : t("Select date")}
                 </p>
               </div>
             </div>
@@ -157,7 +158,7 @@ export function FlightSearchFlow() {
                 <div className="min-w-0 ps-1">
                   <p className="text-xs text-gray-500 font-medium mb-0.5">{t("Return")}</p>
                   <p className={`text-base font-semibold truncate ${dateRange?.to ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}`}>
-                    {dateRange?.to ? format(dateRange.to, "EEE, d MMM") : t("Add date")}
+                    {dateRange?.to ? formatLocalizedDate(dateRange.to, i18n.language, "full") : t("Add date")}
                   </p>
                 </div>
               </div>

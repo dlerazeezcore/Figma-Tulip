@@ -5,9 +5,53 @@ import { useTranslation } from "react-i18next";
 import { Card } from "../../components/ui/card";
 import { format } from "date-fns";
 import { useCurrency } from "../../utils/currency";
-import { enUS, ar, es, fr } from 'date-fns/locale';
+import { AirlineLogo } from "../../components/flights/AirlineLogo";
+import { formatLocalizedDate } from "../../utils/i18n-date";
 
-const locales: Record<string, any> = { en: enUS, ar, es, fr, ku: ar };
+const mockResults = [
+  {
+    offerId: "O123",
+    airlineCode: "LH",
+    airlineName: "Lufthansa",
+    departureDateTime: "2024-06-01T08:00:00Z",
+    arrivalDateTime: "2024-06-01T12:30:00Z",
+    durationInMinutes: 270,
+    origin: "EBL",
+    destination: "DUS",
+    stops: 0,
+    basePrice: 450,
+    labels: ["Recommended", "Best Value"],
+    hasFareFamilies: true
+  },
+  {
+    offerId: "O456",
+    airlineCode: "TK",
+    airlineName: "Turkish Airlines",
+    departureDateTime: "2024-06-01T10:30:00Z",
+    arrivalDateTime: "2024-06-01T16:45:00Z",
+    durationInMinutes: 375,
+    origin: "EBL",
+    destination: "DUS",
+    stops: 1,
+    basePrice: 380,
+    labels: ["Cheapest"],
+    hasFareFamilies: true
+  },
+  {
+    offerId: "O789",
+    airlineCode: "QR",
+    airlineName: "Qatar Airways",
+    departureDateTime: "2024-06-01T04:15:00Z",
+    arrivalDateTime: "2024-06-01T13:20:00Z",
+    durationInMinutes: 545,
+    origin: "EBL",
+    destination: "DUS",
+    stops: 1,
+    basePrice: 520,
+    labels: ["Premium"],
+    hasFareFamilies: true
+  }
+];
 
 function formatDuration(mins: number, t: any) {
   const h = Math.floor(mins / 60);
@@ -32,7 +76,6 @@ export function FlightResults() {
     phase: "outbound"
   };
 
-  const currentLocale = locales[i18nInstance.language] || locales.en;
   const isRTL = document.documentElement.dir === 'rtl';
 
   const isReturnPhase = phase === "return";
@@ -41,8 +84,8 @@ export function FlightResults() {
 
   const totalPassengers = passengers.adults + passengers.children + passengers.infants;
   const dateText = tripType === "roundtrip" && dateRange?.from && dateRange?.to 
-    ? `${format(dateRange.from, "d MMM", { locale: currentLocale })} - ${format(dateRange.to, "d MMM", { locale: currentLocale })}`
-    : dateRange?.from ? format(dateRange.from, "d MMM", { locale: currentLocale }) : "1 Jun";
+    ? `${formatLocalizedDate(dateRange.from, i18nInstance.language, "short")} - ${formatLocalizedDate(dateRange.to, i18nInstance.language, "short")}`
+    : dateRange?.from ? formatLocalizedDate(dateRange.from, i18nInstance.language, "short") : "1 Jun";
 
   const flightsToDisplay = mockResults.map(flight => {
     if (isReturnPhase) {
@@ -163,9 +206,7 @@ export function FlightResults() {
             {/* Top row: Airline / Badges */}
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-muted flex items-center justify-center overflow-hidden font-bold text-[10px] text-gray-500">
-                  {flight.airlineCode}
-                </div>
+                <AirlineLogo code={flight.airlineCode} name={flight.airlineName} />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{flight.airlineName}</span>
               </div>
               <div className="flex gap-1.5">

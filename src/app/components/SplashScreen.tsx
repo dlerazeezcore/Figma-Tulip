@@ -3,20 +3,23 @@ import { Plane, Hotel } from "lucide-react";
 import { EsimIcon } from "./EsimIcon";
 import tulipLogo from "../../imports/Tulipbooking_copy.svg";
 
+import { useTranslation } from "react-i18next";
+
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
   const [currentProduct, setCurrentProduct] = useState(0);
   const [showBrand, setShowBrand] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
   const products = [
-    { icon: Plane, name: "Flights", color: "from-blue-500 to-cyan-500", bgColor: "from-blue-50 to-cyan-50" },
-    { icon: Hotel, name: "Hotels", color: "from-purple-500 to-pink-500", bgColor: "from-purple-50 to-pink-50" },
-    { icon: EsimIcon, name: "eSIM", color: "from-primary to-blue-600", bgColor: "from-blue-50 to-indigo-50" },
+    { icon: Plane, name: t("Flights"), color: "from-blue-500 to-cyan-500", bgColor: "from-blue-50 to-cyan-50" },
+    { icon: Hotel, name: t("Hotels"), color: "from-purple-500 to-pink-500", bgColor: "from-purple-50 to-pink-50" },
+    { icon: EsimIcon, name: t("eSIM"), color: "from-primary to-blue-600", bgColor: "from-blue-50 to-indigo-50" },
   ];
 
   useEffect(() => {
@@ -174,7 +177,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
               Tulip
             </h1>
             <p className="text-white/90 text-lg font-medium tracking-wide">
-              Your Travel Companion
+              {t("Your Travel Companion")}
             </p>
           </div>
         )}
