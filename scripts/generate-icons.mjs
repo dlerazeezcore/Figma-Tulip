@@ -8,18 +8,21 @@ async function generate() {
   console.log('Generating native assets...');
 
   // 1. iOS AppIcon
-  // Use solid white background and smaller logo size (approx 75%)
+  // Increased logo size (approx 95% of 1024px canvas)
   const iosPath = 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png';
   const iosIconDir = path.dirname(iosPath);
   if (!fs.existsSync(iosIconDir)) fs.mkdirSync(iosIconDir, { recursive: true });
 
+  const iosLogoSize = 980; // Larger logo size
+  const iosPadding = (1024 - iosLogoSize) / 2;
+
   await sharp(SVG_SOURCE)
-    .resize(768, 768, { 
+    .resize(iosLogoSize, iosLogoSize, { 
       fit: 'contain', 
       background: '#FFFFFF' 
     })
     .extend({
-      top: 128, bottom: 128, left: 128, right: 128,
+      top: iosPadding, bottom: iosPadding, left: iosPadding, right: iosPadding,
       background: '#FFFFFF'
     })
     .flatten({ background: '#FFFFFF' })
@@ -41,8 +44,8 @@ async function generate() {
     const dir = `android/app/src/main/res/mipmap-${map.name}`;
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    // Legacy Icons (Solid background white, approx 65% logo)
-    const legacySize = Math.floor(map.size * 0.65);
+    // Legacy Icons (Solid background white, larger logo approx 92%)
+    const legacySize = Math.floor(map.size * 0.92);
     const legacyPadding = Math.floor((map.size - legacySize) / 2);
 
     await sharp(SVG_SOURCE)
@@ -70,13 +73,6 @@ async function generate() {
       .flatten({ background: '#FFFFFF' })
       .png()
       .toFile(path.join(dir, 'ic_launcher_round.png'));
-
-    // Adaptive Foreground (Transparent, centered)
-    // Adaptive icons are 108dp. Safe zone is 66dp.
-    // We'll scale density correctly: 108, 162, 216, 324, 432
-    // But we'll just use the standard density scale from the 48-192 list
-    // Actually, adaptive foreground is usually in mipmap-anydpi-v26 or similar, 
-    // but putting density versions in mipmap folders is more standard.
   }
 
   // Generate Adaptive Foreground PNGs
@@ -94,10 +90,10 @@ async function generate() {
       
       const foregroundPath = path.join(dir, 'ic_launcher_foreground.png');
       
-      // Icon should be centered in 108dp box. 
-      // Safe zone is 66dp of 108dp (approx 61%).
-      // We'll use 62% of the box for the logo content for a clean, non-clipped look.
-      const contentSize = Math.floor(map.size * 0.62);
+      // Icon centered in 108dp box. 
+      // Increased size to approx 88% for a very large, premium look
+      // while staying just within safe limits for most masks.
+      const contentSize = Math.floor(map.size * 0.88);
       
       await sharp(SVG_SOURCE)
         .resize(contentSize, contentSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
