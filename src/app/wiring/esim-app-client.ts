@@ -2292,6 +2292,10 @@ export function syncPushDevice(payload: {
         appVersion: toString(payload?.appVersion) || undefined,
         locale: toString(payload?.locale) || undefined,
         timezone: getCurrentTimezoneName() || undefined,
+        userId: payload?.userId !== undefined ? String(payload.userId) : undefined,
+        user_id: payload?.userId !== undefined ? String(payload.userId) : undefined,
+        notificationsEnabled: notificationsEnabled,
+        notifications_enabled: notificationsEnabled,
         customFields: {
           installId: deviceId || undefined,
           userId: toString(payload?.userId) || undefined,
