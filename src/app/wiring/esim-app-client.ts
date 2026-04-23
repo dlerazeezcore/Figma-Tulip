@@ -2502,11 +2502,18 @@ export function sendPushNotification(payload: {
           title,
           body,
           userIds: targetUserIds,
+          user_ids: targetUserIds,
           audience: null,
           sendToAllActive: false,
           send_to_all_active: false,
           tokens: [],
-          data: {},
+          data: {
+            kind,
+            audience: effectiveAudience,
+            route: inAppRoute || undefined,
+            path: inAppRoute || undefined,
+            externalUrl: externalUrl || undefined,
+          },
         }
       : {
           title,

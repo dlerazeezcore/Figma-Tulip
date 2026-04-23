@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { unregisterPushDevice } from "./esim-app-client";
 import {
   addSuperAdmin,
   blockUserAccount,
@@ -1099,11 +1100,26 @@ export function useAdminPageModel(): AdminPageModel {
         const requestedTokens = Number(response.data?.delivery?.requestedTokens ?? response.data?.requestedTokens ?? 0);
         const successCount = Number(response.data?.delivery?.successCount ?? response.data?.successCount ?? 0);
         const failureCount = Number(response.data?.delivery?.failureCount ?? response.data?.failureCount ?? 0);
+        const rawInvalidTokens = response.data?.delivery?.invalidTokens ?? response.data?.invalidTokens;
+        const invalidTokensArray = Array.isArray(rawInvalidTokens) ? rawInvalidTokens.filter(t => typeof t === "string" && t) : [];
         const invalidTokenCount = Number(
           response.data?.delivery?.invalidTokenCount ??
             response.data?.invalidTokenCount ??
-            (Array.isArray(response.data?.delivery?.invalidTokens) ? response.data.delivery.invalidTokens.length : 0),
+            invalidTokensArray.length,
         );
+
+        if (invalidTokensArray.length > 0) {
+          try {
+            console.info(`[admin-push-send] Starting background cleanup of ${invalidTokensArray.length} invalid tokens...`);
+            Promise.allSettled(
+              invalidTokensArray.map(token => 
+                unregisterPushDevice({ installId: "admin-cleanup", token })
+              )
+            ).catch(() => {});
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
 
         try {
           const isDevMode = Boolean((import.meta as any)?.env?.DEV);
@@ -1169,6 +1185,22 @@ export function useAdminPageModel(): AdminPageModel {
         const requestedTokens = Number(response.data?.requestedTokens || 0);
         const successCount = Number(response.data?.successCount || 0);
         const failureCount = Number(response.data?.failureCount || 0);
+        const rawInvalidTokens = response.data?.delivery?.invalidTokens ?? response.data?.invalidTokens;
+        const invalidTokensArray = Array.isArray(rawInvalidTokens) ? rawInvalidTokens.filter(t => typeof t === "string" && t) : [];
+
+        if (invalidTokensArray.length > 0) {
+          try {
+            console.info(`[admin-push-send] Starting background cleanup of ${invalidTokensArray.length} invalid tokens for app update push...`);
+            Promise.allSettled(
+              invalidTokensArray.map(token => 
+                unregisterPushDevice({ installId: "admin-cleanup", token })
+              )
+            ).catch(() => {});
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+
         setAppUpdateLastResult({
           requestedTokens,
           successCount,

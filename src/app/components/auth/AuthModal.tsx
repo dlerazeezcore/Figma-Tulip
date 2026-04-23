@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 import { CountryFlag } from "../ui/country-flag";
 import { Input } from "../ui/input";
@@ -109,6 +110,7 @@ function resolveForgotPasswordError(statusCode?: number, detail?: string): strin
 }
 
 export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }: AuthModalProps) {
+  const { t } = useTranslation();
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot">(initialMode);
   const [authMethod, setAuthMethod] = useState<AuthMethod>("password");
   const [currentStep, setCurrentStep] = useState<AuthStep>("method");
@@ -248,12 +250,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
       }
 
       const label = response.data?.channel === "whatsapp" ? "WhatsApp" : "SMS";
-      toast.success(`OTP sent via ${label} to ${response.data?.to || fullPhoneNumber}`);
+      toast.success(t("OTP sent via {{- label}} to {{- phone}}", { label, phone: response.data?.to || fullPhoneNumber }));
       setOtpCooldownSeconds(OTP_RESEND_COOLDOWN_SECONDS);
       setCurrentStep("otp");
     } catch (error) {
       console.error("OTP request error:", error);
-      toast.error("Unable to send verification code right now.");
+      toast.error(t("Unable to send verification code right now."));
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +267,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
     }
 
     if (otp.length !== OTP_CODE_LENGTH) {
-      toast.error(`Please enter the ${OTP_CODE_LENGTH}-digit code`);
+      toast.error(t("Please enter the {{- length}}-digit code", { length: OTP_CODE_LENGTH }));
       return;
     }
 
@@ -276,13 +278,13 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
     }
 
     if (authMode === "signup") {
-      toast.success("Code received. Continue with your profile details.");
+      toast.success(t("Code received. Continue with your profile details."));
       setCurrentStep("name");
       return;
     }
 
     if (authMode === "forgot") {
-      toast.success("Code received. Set your new password.");
+      toast.success(t("Code received. Set your new password."));
       setCurrentStep("password");
       return;
     }
@@ -299,12 +301,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
         return;
       }
 
-      toast.success("Logged in successfully");
+      toast.success(t("Logged in successfully"));
       onClose();
       onSuccess?.();
     } catch (error) {
       console.error("OTP login error:", error);
-      toast.error("Unable to log in right now.");
+      toast.error(t("Unable to log in right now."));
     } finally {
       setIsSubmitting(false);
     }
@@ -454,12 +456,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
           return;
         }
 
-        toast.success("Password reset successfully");
+        toast.success(t("Password reset successfully"));
         onClose();
         onSuccess?.();
       } catch (error) {
         console.error("Forgot-password reset error:", error);
-        toast.error("Unable to reset password right now.");
+        toast.error(t("Unable to reset password right now."));
       } finally {
         setIsSubmitting(false);
       }
@@ -496,15 +498,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
   if (!isOpen) return null;
 
   const getTitle = () => {
-    if (authMode === "forgot") return "Reset Password";
-    if (authMode === "signup") return "Create Account";
-    return "Welcome Back";
+    if (authMode === "forgot") return t("Reset Password");
+    if (authMode === "signup") return t("Create Account");
+    return t("Welcome Back");
   };
 
   const getSubtitle = () => {
-    if (authMode === "forgot") return "Recover your account access";
-    if (authMode === "signup") return "Sign up to manage your eSIMs";
-    return "Log in to access your account";
+    if (authMode === "forgot") return t("Recover your account access");
+    if (authMode === "signup") return t("Sign up to manage your eSIMs");
+    return t("Log in to access your account");
   };
 
   return (
@@ -542,15 +544,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
           {currentStep === "method" && (
             <div className="space-y-4">
               <p className="text-sm text-gray-600 mb-6">
-                Choose your preferred {authMode === "signup" ? "sign up" : authMode === "forgot" ? "verification" : "login"} method
+                {t("Choose your preferred")} {authMode === "signup" ? t("sign up") : authMode === "forgot" ? t("verification") : t("login")} {t("method")}
               </p>
 
               {authMode === "login" && (
                 <MethodCard
                   icon={<Lock className="w-6 h-6 text-blue-600" />}
                   iconBg="bg-blue-100"
-                  title="Password"
-                  description="Use your password to log in"
+                  title={t("Password")}
+                  description={t("Use your password to log in")}
                   onClick={() => handleMethodSelect("password")}
                 />
               )}
@@ -559,8 +561,8 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                 <MethodCard
                   icon={<Lock className="w-6 h-6 text-blue-600" />}
                   iconBg="bg-blue-100"
-                  title="Password"
-                  description="Create account with password"
+                  title={t("Password")}
+                  description={t("Create account with password")}
                   onClick={() => handleMethodSelect("password")}
                 />
               )}
@@ -568,16 +570,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
               <MethodCard
                 icon={<MessageSquare className="w-6 h-6 text-green-600" />}
                 iconBg="bg-green-100"
-                title="SMS OTP"
-                description="Receive verification code via SMS"
+                title={t("SMS OTP")}
+                description={t("Receive verification code via SMS")}
                 onClick={() => handleMethodSelect("sms")}
               />
 
               <MethodCard
                 icon={<MessageSquare className="w-6 h-6 text-emerald-600" />}
                 iconBg="bg-emerald-100"
-                title="WhatsApp OTP"
-                description="Receive verification code via WhatsApp"
+                title={t("WhatsApp OTP")}
+                description={t("Receive verification code via WhatsApp")}
                 onClick={() => handleMethodSelect("whatsapp")}
               />
 
@@ -590,7 +592,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                     }}
                     className="text-sm text-primary hover:text-primary-hover transition-colors"
                   >
-                    Forgot your password?
+                    {t("Forgot your password?")}
                   </button>
                 </div>
               )}
@@ -603,9 +605,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                   }}
                   className="text-sm text-gray-600"
                 >
-                  {authMode === "signup" ? "Already have an account? " : "Don't have an account? "}
+                  {authMode === "signup" ? t("Already have an account? ") : t("Don't have an account? ")}
                   <span className="text-primary font-medium">
-                    {authMode === "signup" ? "Log In" : "Sign Up"}
+                    {authMode === "signup" ? t("Log In") : t("Sign Up")}
                   </span>
                 </button>
               </div>
@@ -618,14 +620,14 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4">
                 <p className="text-sm text-blue-900 flex items-center gap-2">
                   <Shield className="w-4 h-4" />
-                  {authMethod === "sms" && `We'll send a ${OTP_CODE_LENGTH}-digit code via SMS`}
-                  {authMethod === "whatsapp" && `We'll send a ${OTP_CODE_LENGTH}-digit code via WhatsApp`}
-                  {authMethod === "password" && "Enter your phone number to continue"}
+                  {authMethod === "sms" && t("We'll send a {{- length}}-digit code via SMS", { length: OTP_CODE_LENGTH })}
+                  {authMethod === "whatsapp" && t("We'll send a {{- length}}-digit code via WhatsApp", { length: OTP_CODE_LENGTH })}
+                  {authMethod === "password" && t("Enter your phone number to continue")}
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">Phone Number</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">{t("Phone Number")}</label>
                 <div className="flex gap-2">
                   {/* Country Code Dropdown */}
                   <div className="relative">
@@ -681,7 +683,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                         if (e.key === "Enter") {
                           if (authMethod === "password") {
                             if (!buildFullPhoneNumber()) {
-                              toast.error("Please enter your phone number");
+                              toast.error(t("Please enter your phone number"));
                               return;
                             }
                             setCurrentStep("password");
@@ -701,7 +703,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                 onClick={() => {
                   if (authMethod === "password") {
                     if (!buildFullPhoneNumber()) {
-                      toast.error("Please enter your phone number");
+                      toast.error(t("Please enter your phone number"));
                       return;
                     }
                     setCurrentStep("password");
@@ -711,12 +713,8 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                 }}
               >
                 {isSubmitting
-                  ? authMethod === "password"
-                    ? "Continuing..."
-                    : "Sending..."
-                  : authMethod === "password"
-                  ? "Continue"
-                  : "Send OTP"}
+                  ? (authMethod === "password" ? t("Continuing...") : t("Sending..."))
+                  : (authMethod === "password" ? t("Continue") : t("Send OTP"))}
               </Button>
             </div>
           )}
@@ -727,13 +725,13 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
               <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4">
                 <p className="text-sm text-green-900 flex items-center gap-2">
                   <Shield className="w-4 h-4" />
-                  Code sent to {buildFullPhoneNumber()} via {authMethod === "sms" ? "SMS" : "WhatsApp"}
+                  {t("Code sent to {{- phone}} via {{- method}}", { phone: buildFullPhoneNumber(), method: authMethod === "sms" ? "SMS" : "WhatsApp" })}
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
-                  Enter {OTP_CODE_LENGTH}-Digit Code
+                  {t("Enter {{- length}}-Digit Code", { length: OTP_CODE_LENGTH })}
                 </label>
                 <Input
                   type="text"
@@ -767,8 +765,8 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                   disabled={isSubmitting || otpCooldownSeconds > 0}
                 >
                   {otpCooldownSeconds > 0
-                    ? `Resend code in ${otpCooldownSeconds}s`
-                    : "Didn't receive the code? Resend"}
+                    ? t("Resend code in {{- seconds}}s", { seconds: otpCooldownSeconds })
+                    : t("Didn't receive the code? Resend")}
                 </button>
               </div>
             </div>
@@ -778,7 +776,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
           {currentStep === "name" && (
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">Full Name</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">{t("Full Name")}</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
@@ -814,12 +812,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                   }
                 }}
               >
-                {authMethod === "password" ? "Continue" : "Complete Sign Up"}
+                {authMethod === "password" ? t("Continue") : t("Complete Sign Up")}
               </Button>
 
               {authMethod === "password" && (
                 <p className="text-xs text-gray-500 text-center">
-                  Next: Enter phone number and create password
+                  {t("Next: Enter phone number and create password")}
                 </p>
               )}
             </div>
@@ -832,7 +830,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                 <>
                   {/* Phone Number Field */}
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">Phone Number</label>
+                    <label className="block text-sm font-medium mb-2 text-gray-700">{t("Phone Number")}</label>
                     <div className="flex gap-2">
                       {/* Country Code Dropdown */}
                       <div className="relative">
@@ -891,7 +889,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
 
                   {/* Password Field */}
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">Password</label>
+                    <label className="block text-sm font-medium mb-2 text-gray-700">{t("Password")}</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
@@ -925,7 +923,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                     disabled={isSubmitting}
                     onClick={() => void handleCompleteAuth()}
                   >
-                    {isSubmitting ? "Logging in..." : "Log In"}
+                    {isSubmitting ? t("Logging in...") : t("Log In")}
                   </Button>
 
                   <div className="text-center">
@@ -936,7 +934,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                       }}
                       className="text-sm text-primary hover:text-primary-hover transition-colors font-medium"
                     >
-                      Forgot your password?
+                      {t("Forgot your password?")}
                     </button>
                   </div>
                 </>
@@ -946,7 +944,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                 <>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">
-                      {authMode === "forgot" ? "New Password" : "Create Password"}
+                      {authMode === "forgot" ? t("New Password") : t("Create Password")}
                     </label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -970,11 +968,11 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                         )}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                    <p className="text-xs text-gray-500 mt-1">{t("Minimum 6 characters")}</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">Confirm Password</label>
+                    <label className="block text-sm font-medium mb-2 text-gray-700">{t("Confirm Password")}</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
@@ -1009,21 +1007,17 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
                     onClick={() => void handleCompleteAuth()}
                   >
                     {isSubmitting
-                      ? authMode === "forgot"
-                        ? "Resetting..."
-                        : "Creating..."
-                      : authMode === "forgot"
-                        ? "Reset Password"
-                        : "Create Account"}
+                      ? (authMode === "forgot" ? t("Resetting...") : t("Creating..."))
+                      : (authMode === "forgot" ? t("Reset Password") : t("Create Account"))}
                   </Button>
                 </>
               )}
 
               {authMode === "signup" && (
                 <p className="text-xs text-gray-500 text-center">
-                  By signing up, you agree to our{" "}
-                  <span className="underline cursor-pointer">Terms of Service</span> and{" "}
-                  <span className="underline cursor-pointer">Privacy Policy</span>
+                  {t("By signing up, you agree to our")}{" "}
+                  <span className="underline cursor-pointer">{t("Terms of Service")}</span> {t("and")}{" "}
+                  <span className="underline cursor-pointer">{t("Privacy Policy")}</span>
                 </p>
               )}
             </div>

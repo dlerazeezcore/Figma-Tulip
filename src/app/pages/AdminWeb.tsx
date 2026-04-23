@@ -782,7 +782,7 @@ function CurrencySettingsSection({
           </Label>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="exchange-rate" className="text-sm font-medium text-gray-900 dark:text-foreground">
               Exchange Rate (USD to IQD)
@@ -932,7 +932,7 @@ function HomeTutorialSection(props: any) {
           </Label>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="tutorial-card-title" className="text-sm font-medium text-gray-900 dark:text-foreground">
               Card Title
@@ -972,7 +972,7 @@ function HomeTutorialSection(props: any) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-6 pt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           {/* iPhone Tutorial */}
           <div className="space-y-4 rounded-xl border border-gray-200 dark:border-border p-6 bg-gray-50/50 dark:bg-muted/30">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-foreground flex items-center gap-2">
@@ -1311,7 +1311,7 @@ function PushNotificationsSection(props: any) {
       </div>
 
       <div className="border-t border-gray-200 dark:border-border pt-8 space-y-6">
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="push-kind" className="text-sm font-medium text-gray-900 dark:text-foreground">
               Notification Type
@@ -2002,7 +2002,7 @@ function SignedUsersSection(props: any) {
                         ) : null}
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
                         <Button
                           type="button"
                           variant="outline"
