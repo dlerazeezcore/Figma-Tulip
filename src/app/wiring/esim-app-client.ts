@@ -2215,6 +2215,10 @@ export function syncPushDevice(payload: {
   installId: string;
   token?: string;
   userId?: string;
+  accountUserId?: string;
+  adminUserId?: string;
+  subjectType?: string;
+  isAdmin?: boolean;
   platform?: string;
   locale?: string;
   appVersion?: string;
@@ -2226,10 +2230,21 @@ export function syncPushDevice(payload: {
     const token = toString(payload?.token);
     const deviceId = toString(payload?.installId);
     const notificationsEnabled = payload?.notificationsEnabled !== false;
+
+    // Build context for rich identity
+    const accountUserId = toString(payload?.accountUserId) || undefined;
+    const adminUserId = toString(payload?.adminUserId) || undefined;
+    const subjectType = toString(payload?.subjectType) || undefined;
+    const isAdmin = payload?.isAdmin !== undefined ? Boolean(payload.isAdmin) : undefined;
+
     const legacyPayload = {
       installId: deviceId || undefined,
       token: token || undefined,
       userId: toString(payload?.userId) || undefined,
+      accountUserId,
+      adminUserId,
+      subjectType,
+      isAdmin,
       platform: normalizePushPlatform(payload?.platform),
       locale: toString(payload?.locale) || undefined,
       appVersion: toString(payload?.appVersion) || undefined,
@@ -2294,6 +2309,24 @@ export function syncPushDevice(payload: {
         timezone: getCurrentTimezoneName() || undefined,
         userId: payload?.userId !== undefined ? String(payload.userId) : undefined,
         notificationsEnabled: notificationsEnabled,
+        // Identity context
+        accountUserId,
+        adminUserId,
+        subjectType,
+        isAdmin,
+        // snake_case forms
+        account_user_id: accountUserId,
+        admin_user_id: adminUserId,
+        subject_type: subjectType,
+        is_admin: isAdmin,
+        user_id: payload?.userId !== undefined ? String(payload.userId) : undefined,
+        // customFields for additional metadata
+        customFields: {
+          accountUserId,
+          adminUserId,
+          subjectType,
+          isAdmin,
+        },
       },
     });
 
@@ -2682,6 +2715,41 @@ export function sendAppUpdatePushNotification(payload: {
       };
     }
 
+    // First try standard push/send with app_update parameters for better delivery
+    const primaryResponse = await requestApi("/admin/push-notifications/send", {
+      method: "POST",
+      body: {
+        title,
+        body,
+        audience,
+        dryRun,
+        kind: "app_update",
+        type: "app_update",
+        notificationType: "app_update",
+        // Extended URLs for native compatibility
+        appStoreUrl,
+        playStoreUrl,
+        iosExternalUrl: appStoreUrl,
+        androidExternalUrl: playStoreUrl,
+        iosUrl: appStoreUrl,
+        androidUrl: playStoreUrl,
+        data: {
+          kind: "app_update",
+          appStoreUrl,
+          playStoreUrl,
+          iosExternalUrl: appStoreUrl,
+          androidExternalUrl: playStoreUrl,
+          iosUrl: appStoreUrl,
+          androidUrl: playStoreUrl,
+        },
+      },
+    });
+
+    if (primaryResponse.success) {
+      return primaryResponse;
+    }
+
+    // Fallback to legacy app-update specifically if primary send fails
     const response = await requestApi("/admin/push-notifications/send-app-update", {
       method: "POST",
       body: {

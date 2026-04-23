@@ -785,8 +785,6 @@ const resources = {
       "Chat with Support": "قسەکردن لەگەڵ پشتیوانی",
       "Get help from our team": "وەرگرتنی یارمەتی لە تیمەکەمان",
       "Log Out": "چوونەدەرەوە",
-      "Log In": "چوونەژوورەوە",
-      "Sign Up": "خۆتۆمارکردن",
       "Flight Search": "گەڕان بۆ گەشتەکان",
       "Hotel Search": "گەڕان بۆ هۆتێلەکان",
       "Bookings": "حیجزەکان",
