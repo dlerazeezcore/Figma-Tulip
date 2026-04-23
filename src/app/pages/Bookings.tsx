@@ -82,35 +82,49 @@ export function Bookings() {
         <div className="space-y-3">
           {services.map((svc) => {
             const Icon = svc.icon;
+            const isSoon = svc.key === "flight";
+            
             return (
               <button
                 key={svc.key}
+                disabled={isSoon}
                 onClick={() => handleServiceClick(svc.key)}
-                className="w-full group text-start"
+                className={`w-full group text-start ${isSoon ? "cursor-not-allowed opacity-75" : ""}`}
               >
                 <div
-                  className={`relative rounded-2xl border ${svc.borderAccent} dark:border-border ${svc.bgAccent}/40 dark:bg-card/50 hover:shadow-md transition-all active:scale-[0.98] overflow-hidden`}
+                  className={`relative rounded-2xl border ${svc.borderAccent} dark:border-border ${svc.bgAccent}/40 dark:bg-card/50 ${!isSoon ? "hover:shadow-md" : ""} transition-all ${!isSoon ? "active:scale-[0.98]" : ""} overflow-hidden`}
                 >
                   <div className="relative p-4 flex items-center gap-4">
                     <div className="flex-shrink-0">
                       <div
                         className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform"
                         style={{
-                          background: `linear-gradient(135deg, ${svc.accentFrom}, ${svc.accentTo})`,
+                          background: isSoon 
+                            ? "linear-gradient(135deg, #9ca3af, #6b7280)" 
+                            : `linear-gradient(135deg, ${svc.accentFrom}, ${svc.accentTo})`,
                         }}
                       >
                         <Icon className={`w-6 h-6 text-white ${isRTL && svc.key === 'flight' ? '-scale-x-100' : ''}`} strokeWidth={2} />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5">{svc.title}</h3>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="font-semibold text-gray-900 dark:text-foreground">{svc.title}</h3>
+                        {isSoon && (
+                           <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-500 rounded-full uppercase tracking-wider">{t("Soon")}</span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500 dark:text-muted-foreground">{svc.subtitle}</p>
                     </div>
                     <div className="flex-shrink-0">
-                      {isRTL ? (
-                        <ChevronLeft className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
+                      {isSoon ? (
+                        <Plane className="w-5 h-5 text-gray-300 opacity-20" />
                       ) : (
-                        <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
+                        isRTL ? (
+                          <ChevronLeft className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
+                        )
                       )}
                     </div>
                   </div>
