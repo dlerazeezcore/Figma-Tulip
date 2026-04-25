@@ -543,13 +543,13 @@ function buildAppleActivationUrl(cardData: string): string {
 
 function extractActivationCardData(installUrl: string, activationCode: string): string {
   const directCode = String(activationCode || "").trim();
-  if (directCode) {
+  if (directCode && /^lpa:/i.test(directCode)) {
     return directCode;
   }
 
   const normalizedInstallUrl = normalizeInstallUrl(installUrl);
   if (!normalizedInstallUrl) {
-    return "";
+    return directCode;
   }
 
   if (/^lpa:/i.test(normalizedInstallUrl)) {
@@ -566,7 +566,7 @@ function extractActivationCardData(installUrl: string, activationCode: string): 
     // Ignore malformed URLs and fall back below.
   }
 
-  return "";
+  return directCode;
 }
 
 function flagToCountryCode(flag: string): string {
@@ -607,6 +607,20 @@ function buildCountryCodeByName(destinations: unknown): Map<string, string> {
 }
 
 function resolveCountryCode(row: any, raw: any, countryCodeByName: Map<string, string>): string {
+  const customCode = String(
+    row?.customFields?.countryCode ||
+    row?.custom_fields?.countryCode ||
+    row?.purchaseSnapshot?.countryCode ||
+    raw?.customFields?.countryCode ||
+    raw?.custom_fields?.countryCode ||
+    raw?.purchaseSnapshot?.countryCode ||
+    ""
+  ).trim().toUpperCase();
+
+  if (customCode.length === 2) {
+    return customCode;
+  }
+
   const explicit = String(
     raw?.countryCode || raw?.country_code || row?.countryCode || row?.code || row?.iso || "",
   )
@@ -617,7 +631,15 @@ function resolveCountryCode(row: any, raw: any, countryCodeByName: Map<string, s
     return explicit;
   }
 
-  const countryName = String(raw?.country || row?.country || "").trim();
+  const countryName = String(
+    row?.customFields?.country ||
+    row?.custom_fields?.country ||
+    row?.purchaseSnapshot?.country ||
+    raw?.customFields?.country ||
+    raw?.custom_fields?.country ||
+    raw?.purchaseSnapshot?.country ||
+    raw?.country || row?.country || ""
+  ).trim();
   if (countryName) {
     const fromName = countryCodeByName.get(countryName.toLowerCase());
     if (fromName && fromName.length === 2) {
@@ -708,16 +730,21 @@ function resolveActivationLaunchUrl(esim: Partial<MyEsimItem>, responseRow?: any
 }
 
 function buildQrPayload(installUrl: string, activationCode: string, activationUrl: string): string {
+  const cardData = extractActivationCardData(installUrl, activationCode);
+  if (cardData && /^lpa:/i.test(cardData)) {
+    return cardData;
+  }
+
   const install = normalizeInstallUrl(installUrl);
-  if (install) {
+  if (install && /^lpa:/i.test(install)) {
     return install;
   }
 
-  if (activationUrl) {
+  if (activationUrl && /^lpa:/i.test(activationUrl)) {
     return activationUrl;
   }
 
-  return String(activationCode || "").trim();
+  return cardData || install || activationUrl || String(activationCode || "").trim();
 }
 
 function resolveValidUntil(
@@ -765,8 +792,18 @@ function normalizeMyEsim(
       orderReference ||
       id,
   ).trim();
-  const name = String(raw?.name || row?.name || raw?.country || row?.country || "My eSIM");
-  const country = String(raw?.country || row?.country || "Unknown");
+  const name = String(
+    row?.customFields?.name || row?.custom_fields?.name || raw?.customFields?.name || raw?.custom_fields?.name ||
+    row?.purchaseSnapshot?.name || raw?.purchaseSnapshot?.name ||
+    row?.customFields?.country || row?.custom_fields?.country || raw?.customFields?.country || raw?.custom_fields?.country ||
+    row?.purchaseSnapshot?.country || raw?.purchaseSnapshot?.country ||
+    raw?.name || row?.name || raw?.country || row?.country || "My eSIM"
+  );
+  const country = String(
+    row?.customFields?.country || row?.custom_fields?.country || raw?.customFields?.country || raw?.custom_fields?.country ||
+    row?.purchaseSnapshot?.country || raw?.purchaseSnapshot?.country ||
+    raw?.country || row?.country || "Unknown"
+  );
   const isInstalled = toBoolean(raw?.installed ?? row?.installed);
   const rawStatus = String(raw?.status || row?.status || "inactive");
 
@@ -1450,23 +1487,19 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
       return;
     }
 
-    let nextActivationUrl = resolveActivationLaunchUrl(esim);
+    setBusyEsimId(esim.id);
+    const response = await activateEsim(esim.id, esim.iccid, esim.transactionId);
+    setBusyEsimId("");
 
-    if (!nextActivationUrl) {
-      setBusyEsimId(esim.id);
-      const response = await activateEsim(esim.id, esim.iccid, esim.transactionId);
-      setBusyEsimId("");
-
-      if (!response.success) {
-        toast.error("Activation failed", {
-          description: response.error || "Unable to activate this eSIM right now.",
-        });
-        return;
-      }
-
-      const responseRow = response.data && typeof response.data === "object" ? response.data : {};
-      nextActivationUrl = resolveActivationLaunchUrl(esim, responseRow);
+    if (!response.success && !resolveActivationLaunchUrl(esim)) {
+      toast.error("Activation failed", {
+        description: response.error || "Unable to activate this eSIM right now.",
+      });
+      return;
     }
+
+    const responseRow = response.success && response.data && typeof response.data === "object" ? response.data : {};
+    const nextActivationUrl = resolveActivationLaunchUrl(esim, responseRow);
 
     if (!nextActivationUrl) {
       toast.error("Activation link is not available yet.");

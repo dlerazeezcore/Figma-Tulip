@@ -180,32 +180,30 @@ export function Home() {
               </div>
             </div>
 
-            {/* Hotel Service */}
-            <button
-              onClick={() => handleServiceClick("hotel")}
-              className="w-full group"
-            >
-              <div className="relative bg-white dark:bg-card rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04),0_4_16px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_16px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.12)] transition-all duration-300 active:scale-[0.98] overflow-hidden border border-gray-100/50 dark:border-border">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/10 dark:to-blue-900/20 rounded-full -translate-y-8 translate-x-8 opacity-60 group-hover:opacity-80 transition-opacity"></div>
+            {/* Hotel Service - Locked/Coming Soon */}
+            <div className="w-full relative group opacity-75">
+              <div className="relative bg-white dark:bg-card rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden border border-gray-100/50 dark:border-border cursor-not-allowed">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-900/10 dark:to-blue-900/20 rounded-full -translate-y-8 translate-x-8 opacity-60 transition-opacity"></div>
 
                 <div className="relative p-4 flex items-center gap-4">
                   <div className="flex-shrink-0">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#1967D2] to-[#114A99] flex items-center justify-center shadow-[0_4px_12px_rgba(25,103,210,0.3)] group-hover:shadow-[0_8px_20px_rgba(25,103,210,0.4)] group-hover:scale-105 transition-all">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-lg transition-all">
                       <Building2 className="w-7 h-7 text-white" strokeWidth={2.5} />
                     </div>
                   </div>
                   <div className="flex-1 text-start min-w-0">
-                    <h3 className="font-semibold text-gray-900 dark:text-foreground mb-0.5 tracking-tight">{t("Hotels")}</h3>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="font-semibold text-gray-900 dark:text-foreground tracking-tight">{t("Hotels")}</h3>
+                      <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-bold text-gray-500 rounded-full uppercase tracking-wider">{t("Soon")}</span>
+                    </div>
                     <p className="text-xs text-gray-600 dark:text-muted-foreground font-medium">{t("Find perfect accommodations")}</p>
                   </div>
                   <div className="flex-shrink-0">
-                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-50 to-blue-100/80 dark:from-blue-900/20 dark:to-blue-900/40 border border-blue-200/60 dark:border-blue-800/40 shadow-sm">
-                      <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-400">{t("Soon")}</span>
-                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 transition-all" />
                   </div>
                 </div>
               </div>
-            </button>
+            </div>
           </div>
         </section>
       </div>

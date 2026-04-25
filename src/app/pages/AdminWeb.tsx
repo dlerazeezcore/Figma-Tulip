@@ -231,7 +231,7 @@ export function AdminWeb() {
   if (isMobile && !activeSection) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-background pb-12">
-        <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border px-6 py-8">
+        <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border px-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-6">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1967D2] to-[#114A99] flex items-center justify-center">
@@ -282,7 +282,7 @@ export function AdminWeb() {
             sidebarOpen ? "w-64" : "w-0"
           } transition-all duration-300 bg-white dark:bg-card border-r border-gray-200 dark:border-border flex flex-col overflow-hidden`}
         >
-          <div className="p-6 border-b border-gray-200 dark:border-border">
+          <div className="p-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] border-b border-gray-200 dark:border-border">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1967D2] to-[#114A99] flex items-center justify-center">
                 <Settings2 className="w-5 h-5 text-white" />
@@ -336,7 +336,7 @@ export function AdminWeb() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border px-6 lg:px-8 py-5 flex items-center justify-between">
+        <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border px-6 lg:px-8 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {isMobile ? (
               <button

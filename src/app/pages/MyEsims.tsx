@@ -60,6 +60,10 @@ export function MyEsims() {
   const {
     esims,
     activeEsims,
+    inactiveEsims,
+    expiredEsims,
+    selectedTab,
+    setSelectedTab,
     loading,
     busyEsimId,
     refresh,
@@ -168,23 +172,25 @@ export function MyEsims() {
     >
       {(pullDistance > 0 || isRefreshing) && (
         <div
-          className="flex items-center justify-center py-4 transition-all"
+          className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-300"
           style={{
-            opacity: Math.min(pullDistance / 80, 1),
-            transform: `translateY(${Math.min(pullDistance - 80, 0)}px)`,
+            transform: `translateY(${Math.max(0, isRefreshing ? 60 : pullDistance * 0.5)}px)`,
+            opacity: isRefreshing || pullDistance > 20 ? 1 : 0,
           }}
         >
-          {isRefreshing ? (
-            <Loader2 className="w-6 h-6 text-primary animate-spin" />
-          ) : (
-            <div className="text-sm text-gray-600">
-              {pullDistance > 80 ? t("Release to refresh") : t("Pull to refresh")}
-            </div>
-          )}
+          <div className="bg-white dark:bg-card shadow-lg shadow-black/5 rounded-full px-5 py-2.5 flex items-center gap-2.5 border border-black/5 dark:border-white/10 mt-[env(safe-area-inset-top)]">
+            <Loader2
+              className={`w-5 h-5 text-[#1967D2] ${isRefreshing ? "animate-spin" : ""}`}
+              style={{ transform: !isRefreshing ? `rotate(${pullDistance * 4}deg)` : undefined }}
+            />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {isRefreshing ? t("Refreshing...") : pullDistance > 80 ? t("Release to refresh") : t("Pull to refresh")}
+            </span>
+          </div>
         </div>
       )}
 
-      <header className="relative bg-gradient-to-br from-[#1967D2] via-[#1557B0] to-[#114A99] text-white px-6 pt-12 pb-8 overflow-hidden">
+      <header className="relative bg-gradient-to-br from-[#1967D2] via-[#1557B0] to-[#114A99] text-white px-6 pt-[calc(max(env(safe-area-inset-top),16px)+1rem)] pb-6 overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
@@ -207,8 +213,32 @@ export function MyEsims() {
       </header>
 
       <div className="px-6 py-6 space-y-4">
+        {esims.length > 0 && (
+          <div className="flex bg-gray-200/50 dark:bg-card p-1 rounded-xl mb-2 overflow-x-auto select-none no-scrollbar">
+            {[
+              { id: "active", label: t("Active"), count: activeEsims.length },
+              { id: "inactive", label: t("Inactive"), count: inactiveEsims.length },
+              { id: "expired", label: t("History"), count: expiredEsims.length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setSelectedTab(tab.id as any)}
+                className={`flex-1 min-w-[80px] text-center text-sm font-medium py-2 px-3 rounded-lg transition-all ${
+                  selectedTab === tab.id
+                    ? "bg-white dark:bg-muted text-[#1967D2] shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+              >
+                {tab.label}
+                {tab.count > 0 && <span className="ml-1.5 opacity-60">({tab.count})</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading && esims.length === 0 ? (
           <Card className="p-8 text-center text-gray-500 border-0 shadow-md">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#1967D2]" />
             {t("Loading your eSIMs...")}
           </Card>
         ) : esims.length === 0 ? (
@@ -216,10 +246,10 @@ export function MyEsims() {
             {t("No eSIMs found yet.")}
           </Card>
         ) : (
-          esims.map((esim) => {
-            const showTopUp = esim.hasTopUp;
+          (selectedTab === "active" ? activeEsims : selectedTab === "inactive" ? inactiveEsims : expiredEsims).map((esim) => {
+            const showTopUp = selectedTab === "active" && esim.canTopUp;
             const isBusy = busyEsimId === esim.id;
-            const activateLabel = esim.canActivate ? "Activate" : "Activated";
+            const activateLabel = !esim.canActivate ? "Activated" : "Activate";
 
             return (
               <Card
