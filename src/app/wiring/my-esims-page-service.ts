@@ -525,6 +525,25 @@ function toBoolean(value: unknown): boolean {
   return ["true", "1", "yes", "y", "on", "installed", "active"].includes(text);
 }
 
+function hasValidActivatedDate(value: unknown): boolean {
+  const text = String(value || "").trim();
+  if (!text) {
+    return false;
+  }
+
+  const normalized = text.toLowerCase();
+  if (["0", "null", "undefined", "n/a", "na", "-", "--"].includes(normalized)) {
+    return false;
+  }
+
+  if (/^\d{10,13}$/.test(text)) {
+    return true;
+  }
+
+  const parsedMs = Date.parse(text);
+  return Number.isFinite(parsedMs);
+}
+
 function normalizeInstallUrl(value: unknown): string {
   const raw = String(value || "").trim();
   if (!raw) {
@@ -986,9 +1005,18 @@ function normalizeMyEsim(
       row?.activatedDate ||
       "",
   ).trim();
-  const isActivated = Boolean(activatedDate);
+  const explicitActivationFlag = toBoolean(
+    raw?.isActivated ??
+      raw?.is_activated ??
+      row?.isActivated ??
+      row?.is_activated ??
+      raw?.activated ??
+      row?.activated,
+  );
+  const backendSaysActive = statusFromBackend === "active";
+  const hasActivationDate = hasValidActivatedDate(activatedDate);
+  const isActivated = isInstalled && (explicitActivationFlag || hasActivationDate || backendSaysActive);
   const activationPendingKeyParts = [orderReference, raw?.iccid || row?.iccid, id, activationCode];
-  const activationPending = activationPendingCache.has(buildActivationPendingKey(activationPendingKeyParts));
   const displayDaysLeft = hasDaysLeft ? daysLeft : 0;
   const lifecycleValidUntil = String(
     row?.expiresAt ||
@@ -1020,12 +1048,10 @@ function normalizeMyEsim(
   }
   const finalStatus = hiddenByStatus
     ? "expired"
+    : !isActivated
+    ? "inactive"
     : statusFromBackend === "active" && hasDaysLeft && daysLeft <= 0
     ? "expired"
-    : activationPending && !isActivated
-    ? "inactive"
-    : statusFromBackend === "active" && !isActivated
-    ? "inactive"
     : statusFromBackend;
 
   const countryCode = resolveCountryCode(row, raw, countryCodeByName);
@@ -1376,12 +1402,11 @@ export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): 
 
   const hydrated = normalized.map((item) => {
     const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
-    const isActivated = Boolean(String(item.activatedDate || "").trim());
     return {
       ...item,
       hasTopUp: topUp.hasTopUp,
       topUpPlanId: topUp.planId,
-      canTopUp: item.status === "active" && isActivated && topUp.hasTopUp,
+      canTopUp: item.status === "active" && topUp.hasTopUp,
     };
   });
 
@@ -1396,12 +1421,11 @@ async function hydrateTopUpSupportOnEsims(items: MyEsimItem[]): Promise<MyEsimIt
   return dedupeEsims(
     items.map((item) => {
       const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
-      const isActivated = Boolean(String(item.activatedDate || "").trim());
       return {
         ...item,
         hasTopUp: topUp.hasTopUp,
         topUpPlanId: topUp.planId,
-        canTopUp: item.status === "active" && isActivated && topUp.hasTopUp,
+        canTopUp: item.status === "active" && topUp.hasTopUp,
       };
     }),
   );
