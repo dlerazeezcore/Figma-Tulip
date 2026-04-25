@@ -7,7 +7,7 @@ import { Card } from "../components/ui/card";
 import { CountryFlag } from "../components/ui/country-flag";
 import { Input } from "../components/ui/input";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
-import { useCurrency } from "../utils/currency";
+import { convertUsdToIqd, formatIqd, useCurrency } from "../utils/currency";
 import {
   usePlansPageModel,
 } from "../wiring/plans-page-service";
@@ -44,6 +44,16 @@ export function Plans() {
   const [explicitTab, setExplicitTab] = useState<"popular" | "countries" | "regions">("popular");
   const [countriesSheetBundle, setCountriesSheetBundle] = useState<{ countries: { name: string; code: string }[]; label: string } | null>(null);
   const [countriesSheetSearch, setCountriesSheetSearch] = useState("");
+  const runtimeExchangeRate = Number(exchangeRate || 1320);
+  const runtimeMarkupPercent = Number(markupPercent || 0);
+
+  const formatPlanPrice = (usdPrice: number): string => {
+    if (selectedCurrency === "IQD") {
+      const amountIqd = convertUsdToIqd(usdPrice, runtimeExchangeRate, runtimeMarkupPercent);
+      return `${formatIqd(amountIqd)} IQD`;
+    }
+    return formatPrice(usdPrice);
+  };
 
   const handleTabChange = (tab: "countries" | "regions") => {
     setExplicitTab(tab);
@@ -198,7 +208,7 @@ export function Plans() {
                             </div>
                             <div className="text-end flex-shrink-0">
                               <div className="text-xl font-bold text-gray-900 dark:text-foreground whitespace-nowrap mb-0.5">
-                                {formatPrice(bundle.price)}
+                                {formatPlanPrice(bundle.price)}
                               </div>
                               {isSelected && (
                                 <span className="text-xs text-primary font-medium">{t("Selected")}</span>
@@ -380,7 +390,7 @@ export function Plans() {
                         <h3 className="font-semibold text-white mb-1 text-base tracking-tight drop-shadow-lg">{destination.name}</h3>
                         {preview.plansCount > 0 ? (
                           <p className="text-sm text-white/95 font-medium drop-shadow-md">
-                            {t("From")} {formatPrice(preview.priceFrom)}
+                            {t("From")} {formatPlanPrice(preview.priceFrom)}
                           </p>
                         ) : (
                           <p className="text-sm text-white/95 font-medium drop-shadow-md">{t("Plans available")}</p>
