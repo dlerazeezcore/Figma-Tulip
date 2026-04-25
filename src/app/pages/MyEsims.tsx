@@ -1,4 +1,4 @@
-import { ArrowLeft, Globe, Database, QrCode, Zap, Power, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
+import { ArrowLeft, Globe, Database, QrCode, Zap, Power, Loader2, ChevronRight, ChevronLeft, Calendar } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -142,6 +142,17 @@ export function MyEsims() {
     if (total === 0) return 0;
     return (used / total) * 100;
   };
+
+  const getRemainingDaysLabel = (esim: MyEsimItem) => {
+    if (!esim.activatedDate) {
+      return t("Starts after activation");
+    }
+    if (esim.hasDaysLeft) {
+      return t("{{count}} days left", { count: esim.daysLeft });
+    }
+    return t("Activated");
+  };
+
   const selectedQrUrl = selectedQrEsim ? buildQrImageUrl(selectedQrEsim.qrPayload) : "";
 
   return (
@@ -229,7 +240,7 @@ export function MyEsims() {
           </Card>
         ) : (
           (selectedTab === "active" ? activeEsims : selectedTab === "inactive" ? inactiveEsims : expiredEsims).map((esim) => {
-            const showTopUp = selectedTab === "active" && esim.canTopUp;
+            const showTopUp = esim.canTopUp;
             const isBusy = busyEsimId === esim.id;
             const activateLabel = !esim.canActivate ? "Activated" : "Activate";
 
@@ -317,6 +328,13 @@ export function MyEsims() {
                       </div>
                     </div>
                   )}
+
+                  <div className="flex items-center gap-2 px-1 mb-4">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">
+                      {getRemainingDaysLabel(esim)}
+                    </span>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <Button

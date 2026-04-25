@@ -23,6 +23,8 @@ const CURRENCY_SETTINGS_CACHE_KEY = "settings.currency";
 const WHITELIST_SETTINGS_CACHE_KEY = "settings.whitelist";
 const SUPER_ADMINS_CACHE_KEY = "admin.super-admins";
 const PENDING_ORDER_STORAGE_KEY = "pendingOrderData";
+const MY_ESIMS_SHADOW_ROWS_KEY_PREFIX = "esim.myEsims.shadowRows.v1.";
+const MY_ESIMS_SHADOW_TTL_MS = 10 * 24 * 60 * 60 * 1000;
 const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
 const SETTINGS_CACHE_TTL_MS = 60 * 1000;
 
@@ -328,6 +330,216 @@ function clearPendingOrder(): void {
   }
 }
 
+function getMyEsimsShadowKey(): string {
+  const userId = String(getStoredUserId() || "").trim();
+  return userId ? `${MY_ESIMS_SHADOW_ROWS_KEY_PREFIX}${userId}` : "";
+}
+
+function readMyEsimsShadowRows(): AnyRecord[] {
+  try {
+    const key = getMyEsimsShadowKey();
+    if (!key) {
+      return [];
+    }
+    const raw = String(localStorage.getItem(key) || "").trim();
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const now = Date.now();
+    return parsed.filter((entry: any) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+      const createdAt = Number(entry.__shadowCreatedAt || 0);
+      if (!Number.isFinite(createdAt) || createdAt <= 0) {
+        return false;
+      }
+      return now - createdAt <= MY_ESIMS_SHADOW_TTL_MS;
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeMyEsimsShadowRows(rows: AnyRecord[]): void {
+  try {
+    const key = getMyEsimsShadowKey();
+    if (!key) {
+      return;
+    }
+    localStorage.setItem(key, JSON.stringify(rows));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function toTrimmedUpper(value: unknown): string {
+  return String(value || "").trim().toUpperCase();
+}
+
+function toTrimmed(value: unknown): string {
+  return String(value || "").trim();
+}
+
+function getShadowIdentityKey(row: AnyRecord): string {
+  return (
+    toTrimmed(row?.provider_order_no || row?.providerOrderNo) ||
+    toTrimmed(row?.esim_tran_no || row?.esimTranNo) ||
+    toTrimmed(row?.iccid) ||
+    toTrimmed(row?.transactionId) ||
+    toTrimmed(row?.id)
+  );
+}
+
+function extractEsimListFromPurchasePayload(payload: AnyRecord): AnyRecord[] {
+  const roots: AnyRecord[] = [];
+  const pushRoot = (value: unknown) => {
+    if (value && typeof value === "object") {
+      roots.push(value as AnyRecord);
+    }
+  };
+
+  pushRoot(payload);
+  pushRoot(payload?.data);
+  pushRoot(payload?.sync);
+  pushRoot(payload?.order);
+  pushRoot(payload?.order?.sync);
+  pushRoot(payload?.order?.provider);
+  pushRoot(payload?.provider);
+  pushRoot(payload?.obj);
+
+  for (const root of roots) {
+    const candidates = [
+      root?.sync?.provider?.obj?.esimList,
+      root?.provider?.obj?.esimList,
+      root?.obj?.esimList,
+      root?.esimList,
+    ];
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        return candidate as AnyRecord[];
+      }
+    }
+  }
+
+  return [];
+}
+
+export function saveMyEsimShadowFromPurchaseResult(
+  purchaseResult: unknown,
+  checkoutContext?: {
+    country?: { name?: string; code?: string; flag?: string };
+    plan?: { id?: string; data?: number; validity?: number; price?: number };
+  },
+): void {
+  const userId = String(getStoredUserId() || "").trim();
+  if (!userId || !purchaseResult || typeof purchaseResult !== "object") {
+    return;
+  }
+
+  const payload = purchaseResult as AnyRecord;
+  const esimList = extractEsimListFromPurchasePayload(payload);
+  if (esimList.length === 0) {
+    return;
+  }
+
+  const orderNoFallback = toTrimmed(
+    payload?.order?.provider?.obj?.orderNo ||
+      payload?.provider?.obj?.orderNo ||
+      payload?.order?.database?.providerOrderNo,
+  );
+
+  const now = Date.now();
+  const newRows = esimList
+    .map((entry: AnyRecord, index) => {
+      const packageRow = Array.isArray(entry?.packageList) && entry.packageList.length > 0 ? entry.packageList[0] : {};
+      const countryCode = toTrimmedUpper(packageRow?.locationCode || checkoutContext?.country?.code);
+      const countryName = toTrimmed(
+        checkoutContext?.country?.name ||
+          resolveCountryName(countryCode) ||
+          countryCode ||
+          "Unknown",
+      );
+      const totalDataMb = Math.max(0, Math.round(toNumber(entry?.totalVolume, 0) / (1024 * 1024)));
+      const packageName = toTrimmed(packageRow?.packageName || countryName || "Travel Plan");
+      const providerOrderNo = toTrimmed(entry?.orderNo || orderNoFallback);
+      const esimTranNo = toTrimmed(entry?.esimTranNo);
+      const iccid = toTrimmed(entry?.iccid);
+      const activationCode = toTrimmed(entry?.ac);
+      const installUrl = toTrimmed(entry?.shortUrl || entry?.qrCodeUrl);
+      const shadowId = toTrimmed(`shadow-${providerOrderNo || esimTranNo || iccid || now}-${index + 1}`);
+
+      return {
+        id: shadowId,
+        user_id: userId,
+        userId,
+        iccid,
+        country_code: countryCode,
+        countryCode,
+        country_name: countryName,
+        countryName: countryName,
+        status: "inactive",
+        installed: false,
+        installed_at: "",
+        installedAt: "",
+        activated_at: "",
+        activatedAt: "",
+        expires_at: toTrimmed(entry?.expiredTime || ""),
+        expiresAt: toTrimmed(entry?.expiredTime || ""),
+        totalDataMb,
+        packageDataMb: totalDataMb,
+        usedDataMb: 0,
+        remainingDataMb: totalDataMb,
+        usageUnit: "MB",
+        activation_code: activationCode,
+        activationCode,
+        install_url: installUrl,
+        installUrl,
+        esim_tran_no: esimTranNo,
+        esimTranNo,
+        provider_order_no: providerOrderNo,
+        providerOrderNo,
+        custom_fields: {
+          usageUnit: "MB",
+          packageDataMb: totalDataMb,
+          packageName,
+          countryCode,
+          countryName,
+          checkoutSnapshot: checkoutContext?.country && checkoutContext?.plan
+            ? {
+                country: checkoutContext.country,
+                plan: checkoutContext.plan,
+              }
+            : undefined,
+          shadowStatus: toTrimmed(entry?.esimStatus || entry?.smdpStatus || "GOT_RESOURCE"),
+        },
+        __shadowCreatedAt: now,
+      } as AnyRecord;
+    })
+    .filter((row) => Boolean(getShadowIdentityKey(row)));
+
+  if (newRows.length === 0) {
+    return;
+  }
+
+  const existing = readMyEsimsShadowRows();
+  const mergedByKey = new Map<string, AnyRecord>();
+
+  [...existing, ...newRows].forEach((row) => {
+    const key = getShadowIdentityKey(row);
+    if (!key) {
+      return;
+    }
+    mergedByKey.set(key, row);
+  });
+
+  writeMyEsimsShadowRows(Array.from(mergedByKey.values()));
+}
+
 function normalizePaymentPayload(raw: any): AnyRecord {
   const payload = raw && typeof raw === "object" && raw.data ? raw.data : raw;
   const links = payload?.links || {};
@@ -405,11 +617,16 @@ function createPurchaseTransactionId(prefix = "ORDER"): string {
 }
 
 function requireUserId(): ApiResponse<never> | null {
+  const token = String(getAuthToken() || "").trim();
+  if (!token) {
+    return { success: false, error: "Session expired. Please login again.", statusCode: 401 };
+  }
+
   const userId = getStoredUserId();
   if (userId) {
     return null;
   }
-  return { success: false, error: "User is not authenticated" };
+  return { success: false, error: "Session expired. Please login again.", statusCode: 401 };
 }
 
 export function clearAuth(): void {
@@ -1014,8 +1231,7 @@ export async function getLoyaltyStatus(): Promise<ApiResponse<{ hasAccess: boole
 }
 
 export async function getMyEsims(): Promise<ApiResponse<any[]>> {
-  const userId = getStoredUserId();
-  const response = await client.getMyEsims(userId || undefined);
+  const response = await client.getMyEsims();
   if (!response.success) {
     return response as ApiResponse<any[]>;
   }

@@ -5,5 +5,6 @@ export {
   getMyEsims,
   purchaseWithFIB,
   purchaseWithLoyalty,
+  saveMyEsimShadowFromPurchaseResult,
   topUpEsim,
 } from "./esim-app-service";

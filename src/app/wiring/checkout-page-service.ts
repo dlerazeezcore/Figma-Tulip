@@ -3,7 +3,13 @@ import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { isAuthenticated } from "./account-service";
 import { getCurrencySettings } from "./catalog-service";
-import { completePendingPurchase, getLoyaltyStatus, purchaseWithFIB, purchaseWithLoyalty } from "./orders-service";
+import {
+  completePendingPurchase,
+  getLoyaltyStatus,
+  purchaseWithFIB,
+  purchaseWithLoyalty,
+  saveMyEsimShadowFromPurchaseResult,
+} from "./orders-service";
 import { convertUsdToIqd } from "../utils/currency";
 import { isNativeApp, openNativeBrowser } from "../utils/native-payment";
 
@@ -177,6 +183,8 @@ export function useCheckoutPageModel(): CheckoutPageModel {
           return;
         }
 
+        saveMyEsimShadowFromPurchaseResult(result.data || {}, checkoutData || undefined);
+
         toast.success("Payment completed", {
           description: "Your eSIM order is confirmed successfully.",
         });
@@ -249,6 +257,8 @@ export function useCheckoutPageModel(): CheckoutPageModel {
         setIsProcessing(false);
         return;
       }
+
+      saveMyEsimShadowFromPurchaseResult(result.data || {}, checkoutData || undefined);
 
       toast.success("Purchase successful", {
         description: `Your ${checkoutData?.plan.data || 0} GB eSIM for ${checkoutData?.country.name || "your destination"} is being activated.`,

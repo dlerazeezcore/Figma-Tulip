@@ -65,6 +65,22 @@ function unsupportedNoop(feature: string): ApiResponse {
   };
 }
 
+function requireBearerForProtectedRoute(message = "Session expired. Please login again."): ApiResponse | null {
+  const bearer = String(getAuthToken() || "").trim();
+  if (bearer) {
+    return null;
+  }
+  return {
+    success: false,
+    error: message,
+    statusCode: 401,
+    data: {
+      errorCode: "AUTH_MISSING_BEARER_TOKEN",
+      message,
+    } as any,
+  };
+}
+
 function countryFlag(code: string): string {
   const iso = String(code || "").trim().toUpperCase();
   if (iso.length !== 2) {
@@ -319,6 +335,58 @@ function parseObjectCandidate(value: unknown): AnyRecord {
   }
 }
 
+function extractProfilesRowsFromPayload(payload: any): any[] {
+  return Array.isArray(payload?.profiles)
+    ? payload.profiles
+    : Array.isArray(payload?.rows)
+    ? payload.rows
+    : Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload)
+    ? payload
+    : [];
+}
+
+function getProfileIdentityKey(row: any, index: number): string {
+  const key = String(
+    row?.provider_order_no ||
+      row?.providerOrderNo ||
+      row?.esim_tran_no ||
+      row?.esimTranNo ||
+      row?.iccid ||
+      row?.id ||
+      row?.order_no ||
+      row?.orderNo ||
+      "",
+  ).trim();
+  return key || `fallback_${index + 1}`;
+}
+
+function mergeProfilesRows(...sources: any[][]): any[] {
+  const merged = new Map<string, any>();
+  sources.forEach((rows) => {
+    rows.forEach((row, index) => {
+      const key = getProfileIdentityKey(row, index);
+      const current = merged.get(key);
+      if (!current) {
+        merged.set(key, row);
+        return;
+      }
+
+      const nextHasMoreData =
+        Object.keys(parseObjectCandidate(row?.custom_fields)).length +
+          Object.keys(parseObjectCandidate(row?.customFields)).length >
+        Object.keys(parseObjectCandidate(current?.custom_fields)).length +
+          Object.keys(parseObjectCandidate(current?.customFields)).length;
+
+      if (nextHasMoreData) {
+        merged.set(key, row);
+      }
+    });
+  });
+  return Array.from(merged.values());
+}
+
 function mergeProfileCustomFields(row: AnyRecord): AnyRecord {
   const snake = parseObjectCandidate(row?.custom_fields);
   const camel = parseObjectCandidate(row?.customFields);
@@ -350,22 +418,6 @@ function extractCheckoutSnapshot(row: AnyRecord, customFields: AnyRecord): AnyRe
   }
 
   return {};
-}
-
-function filterProfilesByUser(rows: any[], userId?: string): any[] {
-  const expectedUserId = String(userId || "").trim();
-  if (!expectedUserId) {
-    return rows;
-  }
-
-  return rows.filter((row: any) => {
-    const owner = String(row?.user_id || row?.userId || "").trim();
-    if (!owner) {
-      // Keep rows when backend omits owner on /profiles/my responses.
-      return true;
-    }
-    return owner === expectedUserId;
-  });
 }
 
 function resolveAccountStatus(payload: any): string {
@@ -2854,17 +2906,22 @@ export function sendAppUpdatePushNotification(payload: {
 
 export function getMyEsims(userId?: string): Promise<ApiResponse> {
   return (async () => {
+    void userId;
+    const authError = requireBearerForProtectedRoute();
+    if (authError) {
+      return authError;
+    }
     const sleep = (ms: number) => new Promise<void>((resolve) => {
       setTimeout(resolve, Math.max(0, Math.floor(ms)));
     });
 
-    const fetchProfiles = async (bustCache = false) =>
+    const fetchProfiles = async (bustCache = false, extraQuery: AnyRecord = {}) =>
       requestApi("/esim-access/profiles/my", {
         includeAuth: true,
         query: {
           limit: 100,
           offset: 0,
-          userId: userId || undefined,
+          ...extraQuery,
           ...(bustCache ? { ts: Date.now() } : {}),
         },
       });
@@ -2876,16 +2933,29 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
     }
 
     const data = unwrapApiData(profilesResponse) || profilesResponse;
-    const initialRows = Array.isArray(data?.profiles)
-      ? data.profiles
-      : Array.isArray(data?.rows)
-      ? data.rows
-      : Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data)
-      ? data
-      : [];
-    let filtered = filterProfilesByUser(initialRows, userId);
+    const initialRows = extractProfilesRowsFromPayload(data);
+    let mergedRows = initialRows;
+
+    const broadQueryCandidates: AnyRecord[] = [
+      { status: "all" },
+      { includeInactive: true, includeUninstalled: true, includeNotInstalled: true, onlyInstalled: false, status: "all" },
+      { installed: false, status: "all" },
+    ];
+
+    for (const query of broadQueryCandidates) {
+      const probe = await fetchProfiles(true, query);
+      if (!probe.success) {
+        continue;
+      }
+      const probeData = unwrapApiData(probe) || probe;
+      const probeRows = extractProfilesRowsFromPayload(probeData);
+      if (probeRows.length === 0) {
+        continue;
+      }
+      mergedRows = mergeProfilesRows(mergedRows, probeRows);
+    }
+
+    let filtered = mergedRows;
 
     if (filtered.length === 0) {
       for (const delayMs of [350, 1000]) {
@@ -2895,16 +2965,8 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
           continue;
         }
         const retryData = unwrapApiData(retryResponse) || retryResponse;
-        const retryRows = Array.isArray(retryData?.profiles)
-          ? retryData.profiles
-          : Array.isArray(retryData?.rows)
-          ? retryData.rows
-          : Array.isArray(retryData?.items)
-          ? retryData.items
-          : Array.isArray(retryData)
-          ? retryData
-          : [];
-        filtered = filterProfilesByUser(retryRows, userId);
+        const retryRows = extractProfilesRowsFromPayload(retryData);
+        filtered = mergeProfilesRows(filtered, retryRows);
         if (filtered.length > 0) {
           break;
         }
@@ -3039,6 +3101,11 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
 export function activateEsim(esimId: string, payload: { userId?: string; iccid?: string; esimTranNo?: string }): Promise<ApiResponse> {
   void esimId;
   return (async () => {
+    const authError = requireBearerForProtectedRoute();
+    if (authError) {
+      return authError;
+    }
+
     const iccid = String(payload?.iccid || "").trim();
     const esimTranNo = String(payload?.esimTranNo || "").trim();
     if (!iccid && !esimTranNo) {
@@ -3106,6 +3173,11 @@ export function topupEsim(
   },
 ): Promise<ApiResponse> {
   return (async () => {
+    const authError = requireBearerForProtectedRoute();
+    if (authError) {
+      return authError;
+    }
+
     const packageCode = String(payload?.packageCode || payload?.planId || "").trim();
     const transactionId = String(payload?.transactionId || esimId || "").trim();
     const esimTranNo = String(payload?.esimTranNo || "").trim();
@@ -3141,13 +3213,18 @@ export function topupEsim(
         syncAfterTopup: true,
         userId: payload?.userId || undefined,
       },
-      includeAuth: false,
+      includeAuth: true,
     });
   })();
 }
 
 export function purchaseComplete(payload: AnyRecord): Promise<ApiResponse> {
   return (async () => {
+    const authError = requireBearerForProtectedRoute();
+    if (authError) {
+      return authError;
+    }
+
     const packageCode = toString(payload?.planId || payload?.bundleName || payload?.packageCode);
     if (!packageCode) {
       return { success: false, error: "Missing plan package code." };

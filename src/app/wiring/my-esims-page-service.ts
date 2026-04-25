@@ -8,7 +8,7 @@ import {
 import { getApiBaseCandidates, getFibBaseCandidates } from "./config";
 import { activateEsim, getMyEsims, topUpEsim } from "./orders-service";
 import { requestApi } from "./http";
-import { getUserId } from "./session";
+import { clearAuthSession, getUserId } from "./session";
 import type { ApiResponse } from "./types";
 
 export type MyEsimStatus = "active" | "inactive" | "expired" | "pending";
@@ -83,13 +83,16 @@ interface CachedOrderLifecycle extends OrderLifecycle {
 }
 
 const MY_ESIMS_SNAPSHOT_KEY_PREFIX = "esim.myEsims.snapshot.v2.";
+const MY_ESIMS_SHADOW_ROWS_KEY_PREFIX = "esim.myEsims.shadowRows.v1.";
 const ORDER_LIFECYCLE_CACHE_KEY = "esim.orderLifecycle.cache.v1";
 const ACTIVATION_PENDING_CACHE_KEY = "esim.activation.pending.v1";
 const ORDER_LIFECYCLE_TIMEOUT_MS = 3500;
 const ORDER_LIFECYCLE_CONCURRENCY = 10;
+const ORDER_BACKFILL_TIMEOUT_MS = 2000;
 const TOPUP_LOOKUP_TIMEOUT_MS = 1500;
 const ESIMS_REFRESH_THROTTLE_MS = 25_000;
 const ACTIVATION_PENDING_TTL_MS = 30 * 60 * 1000;
+const MY_ESIMS_SHADOW_TTL_MS = 10 * 24 * 60 * 60 * 1000;
 const topUpSupportCache = new Map<string, TopUpSupport>();
 
 function readMyEsimsSnapshot(): MyEsimItem[] {
@@ -109,6 +112,145 @@ function writeMyEsimsSnapshot(items: MyEsimItem[]): void {
     if (!uid) return;
     localStorage.setItem(MY_ESIMS_SNAPSHOT_KEY_PREFIX + uid, JSON.stringify(items));
   } catch { /* ignore */ }
+}
+
+function getMyEsimsShadowKey(): string {
+  const uid = String(getUserId() || "").trim();
+  return uid ? `${MY_ESIMS_SHADOW_ROWS_KEY_PREFIX}${uid}` : "";
+}
+
+function readMyEsimsShadowRows(): any[] {
+  try {
+    const key = getMyEsimsShadowKey();
+    if (!key) {
+      return [];
+    }
+    const raw = String(localStorage.getItem(key) || "").trim();
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const now = Date.now();
+    return parsed.filter((entry: any) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+      const createdAt = Number(entry.__shadowCreatedAt || 0);
+      if (!Number.isFinite(createdAt) || createdAt <= 0) {
+        return false;
+      }
+      return now - createdAt <= MY_ESIMS_SHADOW_TTL_MS;
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeMyEsimsShadowRows(rows: any[]): void {
+  try {
+    const key = getMyEsimsShadowKey();
+    if (!key) {
+      return;
+    }
+    localStorage.setItem(key, JSON.stringify(rows));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function getRowIdentityKey(row: any): string {
+  if (!row || typeof row !== "object") {
+    return "";
+  }
+
+  const raw = row?.raw && typeof row.raw === "object" ? row.raw : row;
+  return String(
+    row?.orderReference ||
+      row?.provider_order_no ||
+      row?.providerOrderNo ||
+      row?.esim_tran_no ||
+      row?.esimTranNo ||
+      row?.iccid ||
+      raw?.orderReference ||
+      raw?.provider_order_no ||
+      raw?.providerOrderNo ||
+      raw?.esim_tran_no ||
+      raw?.esimTranNo ||
+      raw?.iccid ||
+      row?.id ||
+      raw?.id ||
+      "",
+  ).trim();
+}
+
+function mergeRowsByIdentity(baseRows: any[], extraRows: any[]): any[] {
+  const base = Array.isArray(baseRows) ? baseRows : [];
+  const extra = Array.isArray(extraRows) ? extraRows : [];
+  if (extra.length === 0) {
+    return base;
+  }
+
+  const merged = new Map<string, any>();
+  [...base, ...extra].forEach((row, index) => {
+    const key = getRowIdentityKey(row) || `fallback_${index + 1}`;
+    const current = merged.get(key);
+    if (!current) {
+      merged.set(key, row);
+      return;
+    }
+
+    const currentActivated = Boolean(String(current?.activated_at || current?.activatedAt || "").trim());
+    const nextActivated = Boolean(String(row?.activated_at || row?.activatedAt || "").trim());
+    if (nextActivated && !currentActivated) {
+      merged.set(key, row);
+      return;
+    }
+
+    const currentInstalled = toBoolean(current?.installed ?? current?.installed_at ?? current?.installedAt);
+    const nextInstalled = toBoolean(row?.installed ?? row?.installed_at ?? row?.installedAt);
+    if (nextInstalled && !currentInstalled) {
+      merged.set(key, row);
+      return;
+    }
+
+    const currentCustomSize = Object.keys(current?.custom_fields || current?.customFields || {}).length;
+    const nextCustomSize = Object.keys(row?.custom_fields || row?.customFields || {}).length;
+    if (nextCustomSize > currentCustomSize) {
+      merged.set(key, row);
+    }
+  });
+
+  return Array.from(merged.values());
+}
+
+function mergeRowsWithShadowProfiles(rows: any[]): any[] {
+  const apiRows = Array.isArray(rows) ? rows : [];
+  const shadowRows = readMyEsimsShadowRows();
+  if (shadowRows.length === 0) {
+    return apiRows;
+  }
+
+  const apiKeys = new Set(apiRows.map((row) => getRowIdentityKey(row)).filter(Boolean));
+  const unresolvedShadows = shadowRows.filter((row) => {
+    const key = getRowIdentityKey(row);
+    if (!key) {
+      return false;
+    }
+    return !apiKeys.has(key);
+  });
+
+  if (unresolvedShadows.length !== shadowRows.length) {
+    writeMyEsimsShadowRows(unresolvedShadows);
+  }
+
+  if (unresolvedShadows.length === 0) {
+    return apiRows;
+  }
+
+  return mergeRowsByIdentity(apiRows, unresolvedShadows);
 }
 
 function buildOrderStatusBaseCandidates(): string[] {
@@ -525,6 +667,61 @@ function toBoolean(value: unknown): boolean {
   return ["true", "1", "yes", "y", "on", "installed", "active"].includes(text);
 }
 
+function normalizeStatusToken(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function isTopUpStatusEligible(statusValue: unknown): boolean {
+  const normalized = normalizeStatusToken(statusValue);
+  if (!normalized) {
+    return false;
+  }
+
+  if (normalized === "active" || normalized === "suspended") {
+    return true;
+  }
+
+  if (
+    normalized === "got_resource" ||
+    normalized === "inactive" ||
+    normalized.includes("cancelled") ||
+    normalized.includes("canceled") ||
+    normalized.includes("revoked") ||
+    normalized.includes("refunded")
+  ) {
+    return false;
+  }
+
+  return false;
+}
+
+function resolveSupportTopUpType(row: any, raw: any): number {
+  const values = [
+    row?.supportTopUpType,
+    row?.support_top_up_type,
+    raw?.supportTopUpType,
+    raw?.support_top_up_type,
+    row?.customFields?.supportTopUpType,
+    row?.custom_fields?.supportTopUpType,
+    row?.custom_fields?.support_top_up_type,
+    raw?.customFields?.supportTopUpType,
+    raw?.custom_fields?.supportTopUpType,
+    raw?.custom_fields?.support_top_up_type,
+  ];
+
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.floor(parsed));
+    }
+  }
+
+  return 0;
+}
+
 function hasValidActivatedDate(value: unknown): boolean {
   const text = String(value || "").trim();
   if (!text) {
@@ -857,14 +1054,18 @@ function buildQrPayload(installUrl: string, activationCode: string, activationUr
 function resolveValidUntil(
   explicitValue: unknown,
   daysLeft: number,
-  isInstalled: boolean,
+  isActivated: boolean,
 ): string {
+  if (!isActivated) {
+    return "";
+  }
+
   const explicit = String(explicitValue || "").trim();
   if (explicit) {
     return explicit;
   }
 
-  if (!isInstalled || daysLeft <= 0) {
+  if (daysLeft <= 0) {
     return "";
   }
 
@@ -948,23 +1149,6 @@ function normalizeMyEsim(
   let daysLeft = hasDaysLeft
     ? Math.max(0, Math.floor(extractNumber(backendDaysLeftRaw, 0)))
     : -1;
-  if (!hasDaysLeft) {
-    const fallbackExpiresAt = String(
-      row?.expiresAt ||
-        row?.expires_at ||
-        raw?.expiresAt ||
-        raw?.expires_at ||
-        "",
-    ).trim();
-    if (fallbackExpiresAt) {
-      const expiresAtMs = Date.parse(fallbackExpiresAt);
-      if (Number.isFinite(expiresAtMs)) {
-        const delta = expiresAtMs - Date.now();
-        daysLeft = Math.max(0, Math.ceil(delta / (24 * 60 * 60 * 1000)));
-        hasDaysLeft = true;
-      }
-    }
-  }
   const validityDaysFromRow = Math.floor(
     extractNumber(
       row?.validityDays ??
@@ -1016,6 +1200,27 @@ function normalizeMyEsim(
   const backendSaysActive = statusFromBackend === "active";
   const hasActivationDate = hasValidActivatedDate(activatedDate);
   const isActivated = isInstalled && (explicitActivationFlag || hasActivationDate || backendSaysActive);
+  if (!hasDaysLeft && isActivated) {
+    const fallbackExpiresAt = String(
+      row?.expiresAt ||
+        row?.expires_at ||
+        raw?.expiresAt ||
+        raw?.expires_at ||
+        "",
+    ).trim();
+    if (fallbackExpiresAt) {
+      const expiresAtMs = Date.parse(fallbackExpiresAt);
+      if (Number.isFinite(expiresAtMs)) {
+        const delta = expiresAtMs - Date.now();
+        daysLeft = Math.max(0, Math.ceil(delta / (24 * 60 * 60 * 1000)));
+        hasDaysLeft = true;
+      }
+    }
+  }
+  if (!isActivated) {
+    hasDaysLeft = false;
+    daysLeft = -1;
+  }
   const activationPendingKeyParts = [orderReference, raw?.iccid || row?.iccid, id, activationCode];
   const displayDaysLeft = hasDaysLeft ? daysLeft : 0;
   const lifecycleValidUntil = String(
@@ -1046,18 +1251,23 @@ function normalizeMyEsim(
   if (hiddenByStatus || isActivated) {
     clearActivationPending(activationPendingKeyParts);
   }
-  const finalStatus = hiddenByStatus
-    ? "expired"
-    : !isActivated
+  const finalStatus = !isActivated
     ? "inactive"
+    : hiddenByStatus
+    ? "expired"
     : statusFromBackend === "active" && hasDaysLeft && daysLeft <= 0
     ? "expired"
     : statusFromBackend;
 
   const countryCode = resolveCountryCode(row, raw, countryCodeByName);
   const flag = resolveDisplayFlag(raw?.flag || row?.flag, countryCode);
+  const supportTopUpType = resolveSupportTopUpType(row, raw);
+  const backendTopUpEligibleStatus = isTopUpStatusEligible(
+    raw?.status ?? row?.status ?? rawStatus ?? normalizedRawStatus,
+  );
   const topUp = topUpSupport.get(countryCode) || { hasTopUp: false, planId: "" };
-  const canTopUp = finalStatus === "active" && isActivated && topUp.hasTopUp;
+  const hasTopUp = supportTopUpType > 0;
+  const canTopUp = hasTopUp && backendTopUpEligibleStatus && Boolean(topUp.planId);
 
   return {
     id,
@@ -1083,8 +1293,8 @@ function normalizeMyEsim(
     installUrl,
     activationUrl,
     qrPayload,
-    hasTopUp: topUp.hasTopUp,
-    topUpPlanId: topUp.planId,
+    hasTopUp,
+    topUpPlanId: hasTopUp ? topUp.planId : "",
     canShowQr: Boolean(qrPayload) && finalStatus !== "expired",
     canActivate: finalStatus !== "expired" && !isActivated && Boolean(qrPayload),
     canTopUp,
@@ -1170,14 +1380,17 @@ function pickTopUpPlanId(plans: any[]): string {
   }
 
   const candidate = [...rows]
-    .filter((row) => String(row?.id || row?.bundleName || "").trim())
+    .filter((row) => {
+      const supportTopUpType = Number(row?.supportTopUpType ?? row?.support_top_up_type ?? 0);
+      return Number.isFinite(supportTopUpType) && supportTopUpType > 0 && String(row?.id || row?.bundleName || "").trim();
+    })
     .sort((a, b) => {
       const aPrice = toNumber(a?.price, Number.MAX_SAFE_INTEGER);
       const bPrice = toNumber(b?.price, Number.MAX_SAFE_INTEGER);
       return aPrice - bPrice;
-    })[0];
+    })[0] || null;
 
-  return String(candidate?.id || candidate?.bundleName || "").trim();
+  return candidate ? String(candidate?.id || candidate?.bundleName || "").trim() : "";
 }
 
 async function loadTopUpSupport(countryCodes: string[]): Promise<Map<string, TopUpSupport>> {
@@ -1199,9 +1412,13 @@ async function loadTopUpSupport(countryCodes: string[]): Promise<Map<string, Top
           }),
         ]);
         const plans = response.success && Array.isArray(response.data) ? response.data : [];
+        const topUpPlans = plans.filter((row) => {
+          const supportTopUpType = Number(row?.supportTopUpType ?? row?.support_top_up_type ?? 0);
+          return Number.isFinite(supportTopUpType) && supportTopUpType > 0;
+        });
         const resolved = {
-          hasTopUp: plans.length > 0,
-          planId: pickTopUpPlanId(plans),
+          hasTopUp: topUpPlans.length > 0,
+          planId: pickTopUpPlanId(topUpPlans),
         };
         topUpSupportCache.set(countryCode, resolved);
         support.set(countryCode, resolved);
@@ -1382,9 +1599,10 @@ export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): 
   const initialRows = Array.isArray(myEsimsResponse.data)
     ? myEsimsResponse.data
     : [];
+  const mergedRows = mergeRowsWithShadowProfiles(initialRows);
   const rows = includeOrderLifecycle
-    ? await enrichRowsWithOrderLifecycle(initialRows)
-    : applyCachedOrderLifecycle(initialRows);
+    ? await enrichRowsWithOrderLifecycle(mergedRows)
+    : applyCachedOrderLifecycle(mergedRows);
 
   const countryCodeByName = buildCountryCodeByName(destinationsResponse.success ? destinationsResponse.data : []);
   const activationPendingCache = readActivationPendingCache();
@@ -1402,11 +1620,13 @@ export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): 
 
   const hydrated = normalized.map((item) => {
     const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
+    const hasTopUp = Boolean(item.hasTopUp) && topUp.hasTopUp;
+    const canTopUp = hasTopUp && isTopUpStatusEligible(item.rawStatus) && Boolean(topUp.planId);
     return {
       ...item,
-      hasTopUp: topUp.hasTopUp,
-      topUpPlanId: topUp.planId,
-      canTopUp: item.status === "active" && topUp.hasTopUp,
+      hasTopUp,
+      topUpPlanId: hasTopUp ? topUp.planId : "",
+      canTopUp,
     };
   });
 
@@ -1421,11 +1641,13 @@ async function hydrateTopUpSupportOnEsims(items: MyEsimItem[]): Promise<MyEsimIt
   return dedupeEsims(
     items.map((item) => {
       const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
+      const hasTopUp = Boolean(item.hasTopUp) && topUp.hasTopUp;
+      const canTopUp = hasTopUp && isTopUpStatusEligible(item.rawStatus) && Boolean(topUp.planId);
       return {
         ...item,
-        hasTopUp: topUp.hasTopUp,
-        topUpPlanId: topUp.planId,
-        canTopUp: item.status === "active" && topUp.hasTopUp,
+        hasTopUp,
+        topUpPlanId: hasTopUp ? topUp.planId : "",
+        canTopUp,
       };
     }),
   );
@@ -1437,6 +1659,47 @@ function readRequestedTab(value: string | null): MyEsimTab {
     return requestedTab as MyEsimTab;
   }
   return "active";
+}
+
+function resolveTopUpFailureDetails(response: ApiResponse<any>): {
+  message: string;
+  requestId: string;
+  traceId: string;
+} {
+  const payload = response as any;
+  const data = payload?.data && typeof payload.data === "object" ? payload.data : {};
+  const message = String(
+    response.error ||
+      payload?.providerMessage ||
+      payload?.message ||
+      data?.providerMessage ||
+      data?.message ||
+      "Unable to top up this eSIM.",
+  ).trim();
+  const requestId = String(payload?.requestId || data?.requestId || "").trim();
+  const traceId = String(payload?.traceId || data?.traceId || "").trim();
+  return { message, requestId, traceId };
+}
+
+function isAuthFailureResponse(response: ApiResponse<any>): boolean {
+  const payload = response as any;
+  const data = payload?.data && typeof payload.data === "object" ? payload.data : {};
+  const errorCode = String(payload?.errorCode || data?.errorCode || "").trim().toUpperCase();
+  const messageBlob = `${response.error || ""} ${payload?.message || ""} ${data?.message || ""}`.toLowerCase();
+  return (
+    Number(response.statusCode || 0) === 401 ||
+    errorCode === "AUTH_MISSING_BEARER_TOKEN" ||
+    messageBlob.includes("auth_missing_bearer_token") ||
+    messageBlob.includes("session expired") ||
+    messageBlob.includes("unauthorized")
+  );
+}
+
+function redirectToLoginAfterSessionExpiry(): void {
+  clearAuthSession();
+  window.setTimeout(() => {
+    window.location.assign("/settings");
+  }, 250);
 }
 
 export function useMyEsimsPageModel(): MyEsimsPageModel {
@@ -1696,8 +1959,23 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
     setBusyEsimId("");
 
     if (!response.success) {
+      const details = resolveTopUpFailureDetails(response);
+      if (isAuthFailureResponse(response)) {
+        toast.error("Session expired, please login again");
+        redirectToLoginAfterSessionExpiry();
+        return;
+      }
+
+      if (details.requestId || details.traceId) {
+        console.error("Top-up request failed", {
+          requestId: details.requestId || undefined,
+          traceId: details.traceId || undefined,
+          response,
+        });
+      }
+
       toast.error("Top up failed", {
-        description: response.error || "Unable to top up this eSIM.",
+        description: details.message,
       });
       return;
     }
