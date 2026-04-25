@@ -2088,6 +2088,268 @@ export function getRegionPlans(regionCode: string): Promise<ApiResponse> {
   return getCountryPlans(regionCode);
 }
 
+const DEFAULT_CURRENCY_SETTINGS_DATA = {
+  enableIQD: false,
+  exchangeRate: "1320",
+  markupPercent: "0",
+};
+
+function toCurrencySettingsResponse(
+  data: { enableIQD: boolean; exchangeRate: string; markupPercent: string } = DEFAULT_CURRENCY_SETTINGS_DATA,
+): ApiResponse {
+  return {
+    success: true,
+    data,
+  } as ApiResponse;
+}
+
+function pickFirstFiniteNumber(values: unknown[], minExclusive = Number.NEGATIVE_INFINITY): number | null {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      continue;
+    }
+    if (parsed <= minExclusive) {
+      continue;
+    }
+    return parsed;
+  }
+  return null;
+}
+
+function pickFirstParsedBoolean(values: unknown[]): boolean | null {
+  for (const value of values) {
+    if (value === undefined || value === null || String(value).trim() === "") {
+      continue;
+    }
+    return parseBoolean(value);
+  }
+  return null;
+}
+
+function extractCurrencyRows(payload: unknown): any[] {
+  const source = payload && typeof payload === "object" ? (payload as AnyRecord) : {};
+  const candidates: unknown[] = [
+    source,
+    source?.exchangeRates,
+    source?.rates,
+    source?.rows,
+    source?.items,
+    source?.list,
+    source?.currentRates,
+    source?.exchangeRateList,
+    source?.data,
+    source?.obj,
+    source?.result,
+  ];
+
+  const rows: any[] = [];
+  candidates.forEach((candidate) => {
+    if (Array.isArray(candidate)) {
+      rows.push(...candidate);
+      return;
+    }
+
+    const objectCandidate = parseObjectCandidate(candidate);
+    if (Object.keys(objectCandidate).length === 0) {
+      return;
+    }
+
+    [
+      objectCandidate?.exchangeRates,
+      objectCandidate?.rates,
+      objectCandidate?.rows,
+      objectCandidate?.items,
+      objectCandidate?.list,
+      objectCandidate?.currentRates,
+      objectCandidate?.exchangeRateList,
+    ].forEach((listCandidate) => {
+      if (Array.isArray(listCandidate)) {
+        rows.push(...listCandidate);
+      }
+    });
+  });
+
+  return rows.filter((row) => row && typeof row === "object");
+}
+
+function isUsdIqdCurrencyRow(row: any): boolean {
+  const base = toUpper(
+    row?.baseCurrency ??
+      row?.base_currency ??
+      row?.fromCurrency ??
+      row?.from_currency ??
+      row?.sourceCurrency ??
+      row?.source_currency ??
+      row?.base ??
+      row?.from,
+  );
+  const quote = toUpper(
+    row?.quoteCurrency ??
+      row?.quote_currency ??
+      row?.toCurrency ??
+      row?.to_currency ??
+      row?.targetCurrency ??
+      row?.target_currency ??
+      row?.quote ??
+      row?.to,
+  );
+
+  if (base && quote) {
+    return base === "USD" && quote === "IQD";
+  }
+
+  const pairText = toUpper(
+    row?.pair ??
+      row?.currencyPair ??
+      row?.currency_pair ??
+      row?.symbol ??
+      row?.code ??
+      row?.name,
+  );
+  if (!pairText) {
+    return false;
+  }
+
+  return pairText.includes("USD") && pairText.includes("IQD");
+}
+
+function currencyRowTimestamp(row: any): number {
+  const value = toString(
+    row?.effectiveAt ??
+      row?.effective_at ??
+      row?.updatedAt ??
+      row?.updated_at ??
+      row?.createdAt ??
+      row?.created_at ??
+      row?.timestamp ??
+      row?.time,
+  );
+  if (!value) {
+    return 0;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function pickPreferredCurrencyRow(rows: any[]): AnyRecord | null {
+  const normalizedRows = Array.isArray(rows) ? rows.filter((row) => row && typeof row === "object") : [];
+  if (normalizedRows.length === 0) {
+    return null;
+  }
+
+  const usdIqdRows = normalizedRows.filter(isUsdIqdCurrencyRow);
+  const candidates = usdIqdRows.length > 0 ? usdIqdRows : normalizedRows;
+  const sorted = [...candidates].sort((a, b) => {
+    const aActive = parseBoolean(a?.active ?? a?.isActive ?? a?.is_active ?? a?.enabled ?? a?.isEnabled ?? a?.is_enabled) ? 1 : 0;
+    const bActive = parseBoolean(b?.active ?? b?.isActive ?? b?.is_active ?? b?.enabled ?? b?.isEnabled ?? b?.is_enabled) ? 1 : 0;
+    if (aActive !== bActive) {
+      return bActive - aActive;
+    }
+    return currencyRowTimestamp(b) - currencyRowTimestamp(a);
+  });
+
+  return sorted[0] || null;
+}
+
+function normalizeCurrencySettingsPayload(raw: unknown): { enableIQD: boolean; exchangeRate: string; markupPercent: string } | null {
+  const root = parseObjectCandidate(raw);
+  const rows = extractCurrencyRows(root);
+  const preferredRow = pickPreferredCurrencyRow(rows);
+
+  const objectCandidates: AnyRecord[] = [
+    preferredRow || {},
+    root,
+    parseObjectCandidate(root?.data),
+    parseObjectCandidate(root?.obj),
+    parseObjectCandidate(root?.result),
+    parseObjectCandidate(root?.current),
+    parseObjectCandidate(root?.currency),
+    parseObjectCandidate(root?.currencySettings),
+    parseObjectCandidate(root?.settings),
+    parseObjectCandidate(root?.meta),
+  ].filter((item) => Object.keys(item).length > 0);
+
+  const expandedCandidates: AnyRecord[] = [];
+  objectCandidates.forEach((candidate) => {
+    expandedCandidates.push(candidate);
+    [
+      candidate?.customFields,
+      candidate?.custom_fields,
+      candidate?.configuration,
+      candidate?.config,
+      candidate?.currency,
+      candidate?.currencySettings,
+      candidate?.settings,
+    ].forEach((nested) => {
+      const parsedNested = parseObjectCandidate(nested);
+      if (Object.keys(parsedNested).length > 0) {
+        expandedCandidates.push(parsedNested);
+      }
+    });
+  });
+
+  const exchangeRate = pickFirstFiniteNumber(
+    expandedCandidates.flatMap((candidate) => [
+      candidate?.exchangeRate,
+      candidate?.exchange_rate,
+      candidate?.rate,
+      candidate?.usdToIqd,
+      candidate?.usd_to_iqd,
+      candidate?.currentRate,
+      candidate?.current_rate,
+      candidate?.value,
+      candidate?.conversionRate,
+      candidate?.conversion_rate,
+    ]),
+    0,
+  );
+
+  const markupPercent = pickFirstFiniteNumber(
+    expandedCandidates.flatMap((candidate) => [
+      candidate?.markupPercent,
+      candidate?.markup_percent,
+      candidate?.markup,
+      candidate?.markupRate,
+      candidate?.markup_rate,
+      candidate?.marginPercent,
+      candidate?.margin_percent,
+      candidate?.feePercent,
+      candidate?.fee_percent,
+    ]),
+    Number.NEGATIVE_INFINITY,
+  );
+
+  const explicitEnable = pickFirstParsedBoolean(
+    expandedCandidates.flatMap((candidate) => [
+      candidate?.enableIQD,
+      candidate?.enable_iqd,
+      candidate?.enableIqd,
+      candidate?.enabled,
+      candidate?.isEnabled,
+      candidate?.is_enabled,
+      candidate?.useIQD,
+      candidate?.use_iqd,
+      candidate?.active,
+    ]),
+  );
+
+  const hasSignals =
+    exchangeRate !== null ||
+    markupPercent !== null ||
+    explicitEnable !== null ||
+    Boolean(preferredRow && Object.keys(preferredRow).length > 0);
+  if (!hasSignals) {
+    return null;
+  }
+
+  return {
+    enableIQD: explicitEnable ?? false,
+    exchangeRate: String(exchangeRate ?? 1320),
+    markupPercent: String(markupPercent ?? 0),
+  };
+}
+
 export function getCurrencySettings(): Promise<ApiResponse> {
   if (!isBackendCapabilityEnabled("currencySettings")) {
     return Promise.resolve(unsupported("Currency settings"));
@@ -2095,107 +2357,37 @@ export function getCurrencySettings(): Promise<ApiResponse> {
   return (async () => {
     const fromCurrent = await requestApi("/esim-access/exchange-rates/current");
     if (fromCurrent.success) {
-      const current = unwrapApiData(fromCurrent) || fromCurrent || {};
-      const currentCustom = current?.customFields ?? current?.custom_fields;
-      const custom = currentCustom && typeof currentCustom === "object" ? currentCustom : {};
-      return {
-        success: true,
-        data: {
-          enableIQD: parseBoolean(
-            current?.enableIQD ??
-              current?.enable_iqd ??
-              custom?.enableIQD ??
-              custom?.enable_iqd ??
-              current?.active,
-          ),
-          exchangeRate: String(toNumber(current?.exchangeRate ?? current?.exchange_rate ?? current?.rate, 1320)),
-          markupPercent: String(
-            toNumber(
-              current?.markupPercent ??
-                current?.markup_percent ??
-                custom?.markupPercent ??
-                custom?.markup_percent,
-              0,
-            ),
-          ),
-        },
-      } as ApiResponse;
-    }
-
-    const fallbackAllowed = shouldFallbackToLegacyPushRoute({ success: false, error: String(fromCurrent.error || "") });
-    if (!fallbackAllowed) {
-      return {
-        success: true,
-        data: {
-          enableIQD: false,
-          exchangeRate: "1320",
-          markupPercent: "0",
-        },
-      } as ApiResponse;
+      const normalized = normalizeCurrencySettingsPayload(
+        unwrapApiData(fromCurrent) ?? (fromCurrent as any)?.data ?? fromCurrent,
+      );
+      if (normalized) {
+        return toCurrencySettingsResponse(normalized);
+      }
     }
 
     const response = await requestApi("/admin/exchange-rates");
-    if (!response.success) {
-      return {
-        success: true,
-        data: {
-          enableIQD: false,
-          exchangeRate: "1320",
-          markupPercent: "0",
-        },
-      } as ApiResponse;
+    if (response.success) {
+      const normalized = normalizeCurrencySettingsPayload(
+        unwrapApiData(response) ?? (response as any)?.data ?? response,
+      );
+      if (normalized) {
+        return toCurrencySettingsResponse(normalized);
+      }
     }
 
-    const data = unwrapApiData(response) || response;
-    const rows = Array.isArray(data?.exchangeRates)
-      ? data.exchangeRates
-      : Array.isArray(data?.rates)
-      ? data.rates
-      : Array.isArray(data?.rows)
-      ? data.rows
-      : Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data)
-      ? data
-      : [];
-    const usdIqdRows = rows.filter(
-      (row: any) =>
-        toString(row?.baseCurrency ?? row?.base_currency).toUpperCase() === "USD" &&
-        toString(row?.quoteCurrency ?? row?.quote_currency).toUpperCase() === "IQD",
-    );
+    // Last attempt for deployments exposing a dedicated "current" admin endpoint.
+    const adminCurrent = await requestApi("/admin/exchange-rates/current");
+    if (adminCurrent.success) {
+      const normalized = normalizeCurrencySettingsPayload(
+        unwrapApiData(adminCurrent) ?? (adminCurrent as any)?.data ?? adminCurrent,
+      );
+      if (normalized) {
+        return toCurrencySettingsResponse(normalized);
+      }
+    }
 
-    const sorted = [...usdIqdRows].sort((a: any, b: any) => {
-      const aTime = Date.parse(toString(a?.effectiveAt || a?.createdAt || ""));
-      const bTime = Date.parse(toString(b?.effectiveAt || b?.createdAt || ""));
-      return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
-    });
-
-    const preferred = sorted.find((row: any) => parseBoolean(row?.active)) || sorted[0];
-    const customCandidate = preferred?.customFields ?? preferred?.custom_fields;
-    const custom = customCandidate && typeof customCandidate === "object" ? customCandidate : {};
-
-    return {
-      success: true,
-      data: {
-        enableIQD: parseBoolean(
-          custom?.enableIQD ??
-            custom?.enable_iqd ??
-            preferred?.enableIQD ??
-            preferred?.enable_iqd ??
-            preferred?.active,
-        ),
-        exchangeRate: String(toNumber(preferred?.rate ?? preferred?.exchangeRate ?? preferred?.exchange_rate, 1320)),
-        markupPercent: String(
-          toNumber(
-            custom?.markupPercent ??
-              custom?.markup_percent ??
-              preferred?.markupPercent ??
-              preferred?.markup_percent,
-            0,
-          ),
-        ),
-      },
-    } as ApiResponse;
+    // Keep silent default fallback for backward compatibility, but only after all known sources were attempted.
+    return toCurrencySettingsResponse();
   })();
 }
 

@@ -38,6 +38,26 @@ function toInt(value: any, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function toBoolean(value: any, fallback = false): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value !== 0 : fallback;
+  }
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+  if (["true", "1", "yes", "on", "enabled"].includes(normalized)) {
+    return true;
+  }
+  if (["false", "0", "no", "off", "disabled", "null", "none"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
+}
+
 function flagFromIso(code: string): string {
   const iso = String(code || "").trim().toUpperCase();
   if (iso.length !== 2) {
@@ -1359,9 +1379,9 @@ export async function getCurrencySettings(): Promise<ApiResponse<any>> {
     return {
       success: true,
       data: {
-        enableIQD: Boolean(data?.enableIQD),
-        exchangeRate: String(data?.exchangeRate || "1320"),
-        markupPercent: String(data?.markupPercent || "0"),
+        enableIQD: toBoolean(data?.enableIQD ?? data?.enable_iqd, false),
+        exchangeRate: String(toNumber(data?.exchangeRate ?? data?.exchange_rate ?? data?.rate, 1320)),
+        markupPercent: String(toNumber(data?.markupPercent ?? data?.markup_percent ?? data?.markup, 0)),
       },
     };
   });
