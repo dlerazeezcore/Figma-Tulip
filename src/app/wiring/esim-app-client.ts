@@ -260,7 +260,7 @@ function computeValidityDays(row: any): number {
   ]);
 }
 
-function computeDaysLeft(row: any, validityDays: number): number {
+function computeDaysLeft(row: any, _validityDays: number): number {
   const explicitCandidate = pickFirstNonNegativeNumber([
     row?.daysLeft,
     row?.days_left,
@@ -274,22 +274,42 @@ function computeDaysLeft(row: any, validityDays: number): number {
   if (explicitCandidate !== null) {
     return Math.max(0, Math.floor(explicitCandidate));
   }
+  return -1;
+}
 
-  const expiresAt = String(
-    row?.expiresAt ||
-      row?.expires_at ||
-      row?.validUntil ||
-      row?.valid_until ||
-      "",
-  ).trim();
-  if (expiresAt) {
-    const expiresAtMs = Date.parse(expiresAt);
-    if (Number.isFinite(expiresAtMs)) {
-      const delta = expiresAtMs - Date.now();
-      return Math.max(0, Math.ceil(delta / (24 * 60 * 60 * 1000)));
+function resolveBundleExpiresAt(row: AnyRecord, customFields: AnyRecord, checkoutSnapshot: AnyRecord): string {
+  const plan = toObjectRecord(checkoutSnapshot?.plan);
+  const candidates = [
+    row?.bundleExpiresAt,
+    row?.bundle_expires_at,
+    row?.packageExpiresAt,
+    row?.package_expires_at,
+    customFields?.bundleExpiresAt,
+    customFields?.bundle_expires_at,
+    customFields?.packageExpiresAt,
+    customFields?.package_expires_at,
+    checkoutSnapshot?.bundleExpiresAt,
+    checkoutSnapshot?.bundle_expires_at,
+    checkoutSnapshot?.expiresAt,
+    checkoutSnapshot?.expires_at,
+    plan?.bundleExpiresAt,
+    plan?.bundle_expires_at,
+    plan?.expiresAt,
+    plan?.expires_at,
+  ];
+
+  for (const candidate of candidates) {
+    const text = toString(candidate);
+    if (!text) {
+      continue;
+    }
+    const normalized = text.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+    if (Number.isFinite(Date.parse(normalized))) {
+      return text;
     }
   }
-  return -1;
+
+  return "";
 }
 
 function normalizePhone(phone: string): string {
@@ -3005,6 +3025,7 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
       const computedDaysLeft = computeDaysLeft(row, validityDays);
       const hasDaysLeft = Number.isFinite(computedDaysLeft) && computedDaysLeft >= 0;
       const daysLeft = hasDaysLeft ? Math.max(0, Math.floor(computedDaysLeft)) : 0;
+      const bundleExpiresAt = resolveBundleExpiresAt(rowRecord, customFields, checkoutSnapshot);
       const countryCode = String(
         snapshotCountryCode ||
           customFields?.countryCode ||
@@ -3055,6 +3076,7 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
         installedAt: row?.installed_at || row?.installedAt || "",
         activatedDate: row?.activated_at || row?.activatedAt || "",
         activatedAt: row?.activated_at || row?.activatedAt || "",
+        bundleExpiresAt,
         expiresAt: row?.expires_at || row?.expiresAt || "",
         activationCode:
           row?.activation_code ||

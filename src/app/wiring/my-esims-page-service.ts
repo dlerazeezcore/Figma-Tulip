@@ -687,25 +687,6 @@ function parseObjectCandidate(value: unknown): Record<string, any> {
   }
 }
 
-function toPositiveInt(value: unknown): number {
-  const parsed = Math.floor(extractNumber(value, 0));
-  return parsed > 0 ? parsed : 0;
-}
-
-function pickSmallestPositiveInt(values: unknown[]): number {
-  let best = 0;
-  values.forEach((value) => {
-    const candidate = toPositiveInt(value);
-    if (candidate <= 0) {
-      return;
-    }
-    if (best === 0 || candidate < best) {
-      best = candidate;
-    }
-  });
-  return best;
-}
-
 function parseDateToMs(value: unknown): number {
   const text = String(value || "").trim();
   if (!text) {
@@ -727,102 +708,43 @@ function parseDateToMs(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
-function computeBundleDaysLeftFromActivation(activatedAt: unknown, validityDays: number): number {
-  if (validityDays <= 0) {
-    return -1;
-  }
-  const activatedAtMs = parseDateToMs(activatedAt);
-  if (!Number.isFinite(activatedAtMs)) {
-    return -1;
-  }
-
-  const elapsedMs = Math.max(0, Date.now() - activatedAtMs);
-  const elapsedDays = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
-  return Math.max(0, validityDays - elapsedDays);
-}
-
-function computeBundleExpiresAtIso(activatedAt: unknown, validityDays: number): string {
-  if (validityDays <= 0) {
-    return "";
-  }
-  const activatedAtMs = parseDateToMs(activatedAt);
-  if (!Number.isFinite(activatedAtMs)) {
-    return "";
-  }
-  return new Date(activatedAtMs + validityDays * 24 * 60 * 60 * 1000).toISOString();
-}
-
-function resolveBundleValidityDays(row: any, raw: any): number {
+function resolveBundleExpiresAt(row: any, raw: any): string {
   const directCandidates: unknown[] = [
-    row?.packageValidityDays,
-    row?.package_validity_days,
-    row?.planValidityDays,
-    row?.plan_validity_days,
-    row?.durationDays,
-    row?.duration_days,
-    row?.totalDuration,
-    row?.total_duration,
-    row?.validityDays,
-    row?.validity_days,
-    row?.validity,
-    row?.duration,
-    raw?.packageValidityDays,
-    raw?.package_validity_days,
-    raw?.planValidityDays,
-    raw?.plan_validity_days,
-    raw?.durationDays,
-    raw?.duration_days,
-    raw?.totalDuration,
-    raw?.total_duration,
-    raw?.validityDays,
-    raw?.validity_days,
-    raw?.validity,
-    raw?.duration,
-    row?.customFields?.packageValidityDays,
-    row?.customFields?.package_validity_days,
-    row?.customFields?.planValidityDays,
-    row?.customFields?.plan_validity_days,
-    row?.customFields?.durationDays,
-    row?.customFields?.duration_days,
-    row?.customFields?.totalDuration,
-    row?.customFields?.total_duration,
-    row?.customFields?.validityDays,
-    row?.customFields?.validity_days,
-    row?.customFields?.validity,
-    row?.custom_fields?.packageValidityDays,
-    row?.custom_fields?.package_validity_days,
-    row?.custom_fields?.planValidityDays,
-    row?.custom_fields?.plan_validity_days,
-    row?.custom_fields?.durationDays,
-    row?.custom_fields?.duration_days,
-    row?.custom_fields?.totalDuration,
-    row?.custom_fields?.total_duration,
-    row?.custom_fields?.validityDays,
-    row?.custom_fields?.validity_days,
-    row?.custom_fields?.validity,
-    raw?.customFields?.packageValidityDays,
-    raw?.customFields?.package_validity_days,
-    raw?.customFields?.planValidityDays,
-    raw?.customFields?.plan_validity_days,
-    raw?.customFields?.durationDays,
-    raw?.customFields?.duration_days,
-    raw?.customFields?.totalDuration,
-    raw?.customFields?.total_duration,
-    raw?.customFields?.validityDays,
-    raw?.customFields?.validity_days,
-    raw?.customFields?.validity,
-    raw?.custom_fields?.packageValidityDays,
-    raw?.custom_fields?.package_validity_days,
-    raw?.custom_fields?.planValidityDays,
-    raw?.custom_fields?.plan_validity_days,
-    raw?.custom_fields?.durationDays,
-    raw?.custom_fields?.duration_days,
-    raw?.custom_fields?.totalDuration,
-    raw?.custom_fields?.total_duration,
-    raw?.custom_fields?.validityDays,
-    raw?.custom_fields?.validity_days,
-    raw?.custom_fields?.validity,
+    row?.bundleExpiresAt,
+    row?.bundle_expires_at,
+    raw?.bundleExpiresAt,
+    raw?.bundle_expires_at,
+    row?.packageExpiresAt,
+    row?.package_expires_at,
+    raw?.packageExpiresAt,
+    raw?.package_expires_at,
+    row?.customFields?.bundleExpiresAt,
+    row?.customFields?.bundle_expires_at,
+    row?.custom_fields?.bundleExpiresAt,
+    row?.custom_fields?.bundle_expires_at,
+    raw?.customFields?.bundleExpiresAt,
+    raw?.customFields?.bundle_expires_at,
+    raw?.custom_fields?.bundleExpiresAt,
+    raw?.custom_fields?.bundle_expires_at,
+    row?.customFields?.packageExpiresAt,
+    row?.customFields?.package_expires_at,
+    row?.custom_fields?.packageExpiresAt,
+    row?.custom_fields?.package_expires_at,
+    raw?.customFields?.packageExpiresAt,
+    raw?.customFields?.package_expires_at,
+    raw?.custom_fields?.packageExpiresAt,
+    raw?.custom_fields?.package_expires_at,
   ];
+
+  for (const value of directCandidates) {
+    const text = String(value || "").trim();
+    if (!text) {
+      continue;
+    }
+    if (Number.isFinite(parseDateToMs(text))) {
+      return text;
+    }
+  }
 
   const snapshotSources = [
     row?.purchaseSnapshot,
@@ -843,63 +765,34 @@ function resolveBundleValidityDays(row: any, raw: any): number {
     raw?.custom_fields?.checkout_snapshot,
   ];
 
-  const snapshotCandidates: unknown[] = [];
-  snapshotSources.forEach((source) => {
+  for (const source of snapshotSources) {
     const snapshot = parseObjectCandidate(source);
     if (Object.keys(snapshot).length === 0) {
-      return;
+      continue;
     }
     const plan = parseObjectCandidate(snapshot?.plan);
-    snapshotCandidates.push(
-      snapshot?.validity,
-      snapshot?.validityDays,
-      snapshot?.validity_days,
-      snapshot?.duration,
-      snapshot?.durationDays,
-      snapshot?.duration_days,
-      snapshot?.planValidityDays,
-      snapshot?.plan_validity_days,
-      plan?.validity,
-      plan?.validityDays,
-      plan?.validity_days,
-      plan?.duration,
-      plan?.durationDays,
-      plan?.duration_days,
-    );
-  });
-
-  return pickSmallestPositiveInt([...directCandidates, ...snapshotCandidates]);
-}
-
-function normalizeStatusToken(value: unknown): string {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-}
-
-function isTopUpStatusEligible(statusValue: unknown): boolean {
-  const normalized = normalizeStatusToken(statusValue);
-  if (!normalized) {
-    return false;
+    const candidates = [
+      snapshot?.bundleExpiresAt,
+      snapshot?.bundle_expires_at,
+      snapshot?.expiresAt,
+      snapshot?.expires_at,
+      plan?.bundleExpiresAt,
+      plan?.bundle_expires_at,
+      plan?.expiresAt,
+      plan?.expires_at,
+    ];
+    for (const candidate of candidates) {
+      const text = String(candidate || "").trim();
+      if (!text) {
+        continue;
+      }
+      if (Number.isFinite(parseDateToMs(text))) {
+        return text;
+      }
+    }
   }
 
-  if (normalized === "active" || normalized === "suspended") {
-    return true;
-  }
-
-  if (
-    normalized === "got_resource" ||
-    normalized === "inactive" ||
-    normalized.includes("cancelled") ||
-    normalized.includes("canceled") ||
-    normalized.includes("revoked") ||
-    normalized.includes("refunded")
-  ) {
-    return false;
-  }
-
-  return false;
+  return "";
 }
 
 function resolveSupportTopUpType(row: any, raw: any): number {
@@ -1353,7 +1246,7 @@ function normalizeMyEsim(
   const backendDaysLeft = hasBackendDaysLeft
     ? Math.max(0, Math.floor(extractNumber(backendDaysLeftRaw, 0)))
     : -1;
-  const validityDays = resolveBundleValidityDays(row, raw);
+  const bundleExpiresAt = resolveBundleExpiresAt(row, raw);
   const hiddenByStatus = isHiddenLifecycleStatus(normalizedRawStatus);
   const statusFromBackend: MyEsimStatus = hiddenByStatus
     ? "expired"
@@ -1397,39 +1290,10 @@ function normalizeMyEsim(
   const isActivated = isInstalled && (explicitActivationFlag || hasActivationDate || backendSaysActive);
   let hasDaysLeft = false;
   let daysLeft = -1;
-  if (isActivated) {
-    const bundleDaysLeft = computeBundleDaysLeftFromActivation(activatedDate, validityDays);
-    if (bundleDaysLeft >= 0) {
-      daysLeft = bundleDaysLeft;
-      hasDaysLeft = true;
-    }
-
-    if (backendDaysLeft >= 0) {
-      if (hasDaysLeft) {
-        // Keep app countdown bounded by purchased bundle validity when backend/profile counters diverge.
-        daysLeft = Math.min(daysLeft, backendDaysLeft);
-      } else {
-        daysLeft = backendDaysLeft;
-        hasDaysLeft = true;
-      }
-    }
-  }
-  if (!hasDaysLeft && isActivated) {
-    const fallbackExpiresAt = String(
-      row?.expiresAt ||
-        row?.expires_at ||
-        raw?.expiresAt ||
-        raw?.expires_at ||
-        "",
-    ).trim();
-    if (fallbackExpiresAt) {
-      const expiresAtMs = Date.parse(fallbackExpiresAt);
-      if (Number.isFinite(expiresAtMs)) {
-        const delta = expiresAtMs - Date.now();
-        daysLeft = Math.max(0, Math.ceil(delta / (24 * 60 * 60 * 1000)));
-        hasDaysLeft = true;
-      }
-    }
+  if (hasActivationDate && backendDaysLeft >= 0) {
+    // Backend profiles/my `daysLeft` is the countdown source of truth.
+    daysLeft = backendDaysLeft;
+    hasDaysLeft = true;
   }
   if (!isActivated) {
     hasDaysLeft = false;
@@ -1437,29 +1301,8 @@ function normalizeMyEsim(
   }
   const activationPendingKeyParts = [orderReference, raw?.iccid || row?.iccid, id, activationCode];
   const displayDaysLeft = hasDaysLeft ? daysLeft : 0;
-  const bundleValidUntil = computeBundleExpiresAtIso(activatedDate, validityDays);
-  const lifecycleValidUntil = String(
-    row?.expiresAt ||
-      row?.expires_at ||
-      raw?.expiresAt ||
-      raw?.expires_at ||
-      row?.validUntil ||
-      row?.valid_until ||
-      raw?.validUntil ||
-      raw?.valid_until ||
-      "",
-  ).trim();
   const validUntil = resolveValidUntil(
-    bundleValidUntil ||
-      lifecycleValidUntil ||
-      raw?.validUntil ||
-      raw?.valid_until ||
-      raw?.expiresAt ||
-      raw?.expires_at ||
-      row?.validUntil ||
-      row?.valid_until ||
-      row?.expiresAt ||
-      row?.expires_at,
+    bundleExpiresAt,
     displayDaysLeft,
     isActivated,
   );
@@ -1478,12 +1321,9 @@ function normalizeMyEsim(
   const countryCode = resolveCountryCode(row, raw, countryCodeByName);
   const flag = resolveDisplayFlag(raw?.flag || row?.flag, countryCode);
   const supportTopUpType = resolveSupportTopUpType(row, raw);
-  const backendTopUpEligibleStatus = isTopUpStatusEligible(
-    raw?.status ?? row?.status ?? rawStatus ?? normalizedRawStatus,
-  );
   const topUp = topUpSupport.get(countryCode) || { hasTopUp: false, planId: "" };
   const hasTopUp = supportTopUpType > 0;
-  const canTopUp = hasTopUp && backendTopUpEligibleStatus && Boolean(topUp.planId);
+  const canTopUp = hasTopUp;
 
   return {
     id,
@@ -1501,7 +1341,7 @@ function normalizeMyEsim(
     dataRemaining,
     daysLeft: displayDaysLeft,
     hasDaysLeft,
-    validityDays,
+    validityDays: 0,
     validUntil,
     iccid: String(raw?.iccid || row?.iccid || ""),
     activatedDate: resolvedActivatedDate,
@@ -1510,7 +1350,7 @@ function normalizeMyEsim(
     activationUrl,
     qrPayload,
     hasTopUp,
-    topUpPlanId: hasTopUp ? topUp.planId : "",
+    topUpPlanId: hasTopUp ? (topUp.planId || "") : "",
     canShowQr: Boolean(qrPayload) && finalStatus !== "expired",
     canActivate: finalStatus !== "expired" && !isActivated && Boolean(qrPayload),
     canTopUp,
@@ -1836,12 +1676,12 @@ export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): 
 
   const hydrated = normalized.map((item) => {
     const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
-    const hasTopUp = Boolean(item.hasTopUp) && topUp.hasTopUp;
-    const canTopUp = hasTopUp && isTopUpStatusEligible(item.rawStatus) && Boolean(topUp.planId);
+    const hasTopUp = Boolean(item.hasTopUp);
+    const canTopUp = hasTopUp;
     return {
       ...item,
       hasTopUp,
-      topUpPlanId: hasTopUp ? topUp.planId : "",
+      topUpPlanId: hasTopUp ? (topUp.planId || item.topUpPlanId || "") : "",
       canTopUp,
     };
   });
@@ -1857,12 +1697,12 @@ async function hydrateTopUpSupportOnEsims(items: MyEsimItem[]): Promise<MyEsimIt
   return dedupeEsims(
     items.map((item) => {
       const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
-      const hasTopUp = Boolean(item.hasTopUp) && topUp.hasTopUp;
-      const canTopUp = hasTopUp && isTopUpStatusEligible(item.rawStatus) && Boolean(topUp.planId);
+      const hasTopUp = Boolean(item.hasTopUp);
+      const canTopUp = hasTopUp;
       return {
         ...item,
         hasTopUp,
-        topUpPlanId: hasTopUp ? topUp.planId : "",
+        topUpPlanId: hasTopUp ? (topUp.planId || item.topUpPlanId || "") : "",
         canTopUp,
       };
     }),
