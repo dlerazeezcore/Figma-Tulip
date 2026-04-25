@@ -48,6 +48,7 @@ export interface MyEsimItem {
 interface LoadMyEsimsOptions {
   includeTopUpSupport?: boolean;
   includeOrderLifecycle?: boolean;
+  includeDestinationLookup?: boolean;
 }
 
 export interface MyEsimsPageModel {
@@ -1337,8 +1338,12 @@ async function enrichRowsWithOrderLifecycle(rows: any[]): Promise<any[]> {
 export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): Promise<MyEsimItem[]> {
   const includeTopUpSupport = options.includeTopUpSupport !== false;
   const includeOrderLifecycle = options.includeOrderLifecycle !== false;
+  const includeDestinationLookup = options.includeDestinationLookup !== false;
 
-  const [myEsimsResponse, destinationsResponse] = await Promise.all([getMyEsims(), getAllDestinations()]);
+  const [myEsimsResponse, destinationsResponse] = await Promise.all([
+    getMyEsims(),
+    includeDestinationLookup ? getAllDestinations() : Promise.resolve<ApiResponse<any[]>>({ success: true, data: [] }),
+  ]);
 
   if (!myEsimsResponse.success) {
     const cached = readMyEsimsSnapshot();
@@ -1371,11 +1376,12 @@ export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): 
 
   const hydrated = normalized.map((item) => {
     const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
+    const isActivated = Boolean(String(item.activatedDate || "").trim());
     return {
       ...item,
       hasTopUp: topUp.hasTopUp,
       topUpPlanId: topUp.planId,
-      canTopUp: item.status === "active" && item.isInstalled && topUp.hasTopUp,
+      canTopUp: item.status === "active" && isActivated && topUp.hasTopUp,
     };
   });
 
@@ -1390,11 +1396,12 @@ async function hydrateTopUpSupportOnEsims(items: MyEsimItem[]): Promise<MyEsimIt
   return dedupeEsims(
     items.map((item) => {
       const topUp = topUpSupport.get(item.countryCode) || { hasTopUp: false, planId: "" };
+      const isActivated = Boolean(String(item.activatedDate || "").trim());
       return {
         ...item,
         hasTopUp: topUp.hasTopUp,
         topUpPlanId: topUp.planId,
-        canTopUp: item.status === "active" && item.isInstalled && topUp.hasTopUp,
+        canTopUp: item.status === "active" && isActivated && topUp.hasTopUp,
       };
     }),
   );
@@ -1419,6 +1426,8 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
   const [selectedQrEsim, setSelectedQrEsim] = useState<MyEsimItem | null>(null);
   const lastRefreshAtRef = useRef(0);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const inactiveRecoveryAttemptsRef = useRef(0);
+  const inactiveRecoveryTimerRef = useRef<number | null>(null);
 
   const activeEsims = useMemo(
     () =>
@@ -1510,6 +1519,43 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
   useEffect(() => {
     setSelectedTabState(readRequestedTab(searchParams.get("tab")));
   }, [searchParams]);
+
+  useEffect(() => {
+    return () => {
+      if (inactiveRecoveryTimerRef.current !== null) {
+        window.clearTimeout(inactiveRecoveryTimerRef.current);
+        inactiveRecoveryTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedTab !== "inactive" || loading || inactiveEsims.length > 0) {
+      inactiveRecoveryAttemptsRef.current = 0;
+      if (inactiveRecoveryTimerRef.current !== null) {
+        window.clearTimeout(inactiveRecoveryTimerRef.current);
+        inactiveRecoveryTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (inactiveRecoveryTimerRef.current !== null) {
+      return;
+    }
+
+    const attempt = inactiveRecoveryAttemptsRef.current;
+    if (attempt >= 3) {
+      return;
+    }
+
+    const delays = [900, 2100, 4200];
+    const delayMs = delays[attempt] ?? delays[delays.length - 1];
+    inactiveRecoveryTimerRef.current = window.setTimeout(() => {
+      inactiveRecoveryTimerRef.current = null;
+      inactiveRecoveryAttemptsRef.current += 1;
+      void refreshEsims(false, true);
+    }, delayMs);
+  }, [selectedTab, loading, inactiveEsims.length]);
 
   useEffect(() => {
     let mounted = true;

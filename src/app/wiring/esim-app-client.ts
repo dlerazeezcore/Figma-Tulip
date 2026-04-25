@@ -2854,6 +2854,10 @@ export function sendAppUpdatePushNotification(payload: {
 
 export function getMyEsims(userId?: string): Promise<ApiResponse> {
   return (async () => {
+    const sleep = (ms: number) => new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.max(0, Math.floor(ms)));
+    });
+
     const fetchProfiles = async (bustCache = false) =>
       requestApi("/esim-access/profiles/my", {
         includeAuth: true,
@@ -2865,7 +2869,7 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
         },
       });
 
-    const profilesResponse = await fetchProfiles(false);
+    const profilesResponse = await fetchProfiles(true);
 
     if (!profilesResponse.success) {
       return profilesResponse;
@@ -2884,8 +2888,12 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
     let filtered = filterProfilesByUser(initialRows, userId);
 
     if (filtered.length === 0) {
-      const retryResponse = await fetchProfiles(true);
-      if (retryResponse.success) {
+      for (const delayMs of [350, 1000]) {
+        await sleep(delayMs);
+        const retryResponse = await fetchProfiles(true);
+        if (!retryResponse.success) {
+          continue;
+        }
         const retryData = unwrapApiData(retryResponse) || retryResponse;
         const retryRows = Array.isArray(retryData?.profiles)
           ? retryData.profiles
@@ -2897,6 +2905,9 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
           ? retryData
           : [];
         filtered = filterProfilesByUser(retryRows, userId);
+        if (filtered.length > 0) {
+          break;
+        }
       }
     }
 

@@ -4,7 +4,7 @@ import { getCurrencySettings, getPopularDestinations } from "./catalog-service";
 import { resolveCountryName } from "./country-names";
 import { useHomeTutorialModel, type HomeTutorialModel } from "./home-tutorial-service";
 import { loadMyEsimsPageContent, type MyEsimItem } from "./my-esims-page-service";
-import { addAuthSessionChangeListener, getUserName, isAuthenticated } from "./session";
+import { addAuthSessionChangeListener, getUserId, getUserName, isAuthenticated } from "./session";
 
 export interface HomeDestination {
   id: string | number;
@@ -53,6 +53,7 @@ export interface HomePageModel {
 
 const HOME_POPULAR_CONTENT_CACHE_KEY = "home.popular.content.v1";
 const HOME_POPULAR_CODES_CACHE_KEY = "home.popular.codes.v1";
+const HOME_MY_ESIMS_SNAPSHOT_KEY_PREFIX = "esim.myEsims.snapshot.v2.";
 
 function toNumber(value: unknown, fallback = 0): number {
   const parsed = Number(value);
@@ -242,9 +243,37 @@ export async function loadHomeActiveEsimContent(): Promise<HomeActiveEsim | null
   const myEsimsRows = await loadMyEsimsPageContent({
     includeTopUpSupport: false,
     includeOrderLifecycle: false,
+    includeDestinationLookup: false,
   });
   const activeEsims = myEsimsRows.filter((item) => item.status === "active" && item.isInstalled);
   return activeEsims.length > 0 ? normalizeActiveEsim(activeEsims[0]) : null;
+}
+
+function readImmediateHomeActiveEsimFromSnapshot(): HomeActiveEsim | null {
+  try {
+    const userId = String(getUserId() || "").trim();
+    if (!userId) {
+      return null;
+    }
+    const raw = String(localStorage.getItem(HOME_MY_ESIMS_SNAPSHOT_KEY_PREFIX + userId) || "").trim();
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    const rows = Array.isArray(parsed) ? parsed : [];
+    const active = rows.find((item: any) =>
+      item &&
+      typeof item === "object" &&
+      String(item.status || "").toLowerCase() === "active" &&
+      Boolean(item.isInstalled),
+    );
+    if (!active) {
+      return null;
+    }
+    return normalizeActiveEsim(active as MyEsimItem);
+  } catch {
+    return null;
+  }
 }
 
 export async function loadHomePageContent(): Promise<HomePageContent> {
@@ -263,10 +292,11 @@ export function useHomePageModel(): HomePageModel {
   const navigate = useNavigate();
   const tutorial = useHomeTutorialModel();
   const immediatePopularContent = getImmediateHomePopularContent();
+  const immediateActiveEsim = readImmediateHomeActiveEsimFromSnapshot();
   const [popularDestinations, setPopularDestinations] = useState<HomeDestination[]>(
     immediatePopularContent.popularDestinations,
   );
-  const [activeEsim, setActiveEsim] = useState<HomeActiveEsim | null>(null);
+  const [activeEsim, setActiveEsim] = useState<HomeActiveEsim | null>(immediateActiveEsim);
   const [exchangeRate, setExchangeRate] = useState(immediatePopularContent.exchangeRate);
   const [markupPercent, setMarkupPercent] = useState(immediatePopularContent.markupPercent);
   const [welcomeName, setWelcomeName] = useState(() =>
@@ -302,6 +332,18 @@ export function useHomePageModel(): HomePageModel {
     };
 
     void loadActiveEsim();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadActiveEsim();
+      }
+    };
+    window.addEventListener("focus", loadActiveEsim);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", loadActiveEsim);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   useEffect(() => {

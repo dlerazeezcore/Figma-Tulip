@@ -109,11 +109,6 @@ export function Home() {
                     </p>
                   )}
                 </div>
-
-                <div className="flex justify-between text-sm pt-1 border-t border-white/20">
-                  <span className="opacity-90 font-medium">{t("Valid for")}</span>
-                  <span className="font-semibold">{t("{{count}} days remaining", { count: activeEsim.daysLeft })}</span>
-                </div>
               </div>
             </Card>
           )}
