@@ -8,10 +8,10 @@ async function generate() {
   console.log('Generating native assets...');
 
   // 1. iOS AppIcon
-  // Increased logo size (approx 95% of 1024px canvas)
-  const iosPath = 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png';
-  const iosIconDir = path.dirname(iosPath);
-  if (!fs.existsSync(iosIconDir)) fs.mkdirSync(iosIconDir, { recursive: true });
+  const IOS_ICONSET_DIR = 'ios/App/App/Assets.xcassets/AppIcon.appiconset';
+  const IOS_ICON_FILE = 'AppIcon-1024.png';
+  const iosPath = path.join(IOS_ICONSET_DIR, IOS_ICON_FILE);
+  if (!fs.existsSync(IOS_ICONSET_DIR)) fs.mkdirSync(IOS_ICONSET_DIR, { recursive: true });
 
   const iosLogoSize = 980; // Larger logo size
   const iosPadding = (1024 - iosLogoSize) / 2;
@@ -29,6 +29,34 @@ async function generate() {
     .png()
     .toFile(iosPath);
   console.log(`Generated iOS Icon: ${iosPath}`);
+
+  // Clean up old PNGs
+  const filesInDir = fs.readdirSync(IOS_ICONSET_DIR);
+  for (const file of filesInDir) {
+    if (file.endsWith('.png') && file !== IOS_ICON_FILE) {
+      fs.unlinkSync(path.join(IOS_ICONSET_DIR, file));
+    }
+  }
+
+  // Rewrite Contents.json
+  const contentsJson = {
+    "images": [
+      {
+        "idiom": "ios-marketing",
+        "size": "1024x1024",
+        "scale": "1x",
+        "filename": "AppIcon-1024.png"
+      }
+    ],
+    "info": {
+      "author": "xcode",
+      "version": 1
+    }
+  };
+  fs.writeFileSync(
+    path.join(IOS_ICONSET_DIR, 'Contents.json'),
+    JSON.stringify(contentsJson, null, 2)
+  );
 
   // 2. Android Mipmaps (Legacy/Round)
   // Sizes for standard icons: 48, 72, 96, 144, 192
