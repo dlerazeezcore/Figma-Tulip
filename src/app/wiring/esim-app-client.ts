@@ -297,6 +297,77 @@ function toUpper(value: unknown): string {
   return toString(value).toUpperCase();
 }
 
+function toObjectRecord(value: unknown): AnyRecord {
+  return value && typeof value === "object" ? (value as AnyRecord) : {};
+}
+
+function parseObjectCandidate(value: unknown): AnyRecord {
+  if (value && typeof value === "object") {
+    return value as AnyRecord;
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as AnyRecord) : {};
+  } catch {
+    return {};
+  }
+}
+
+function mergeProfileCustomFields(row: AnyRecord): AnyRecord {
+  const snake = parseObjectCandidate(row?.custom_fields);
+  const camel = parseObjectCandidate(row?.customFields);
+  return {
+    ...snake,
+    ...camel,
+  };
+}
+
+function extractCheckoutSnapshot(row: AnyRecord, customFields: AnyRecord): AnyRecord {
+  const candidates = [
+    customFields?.checkoutSnapshot,
+    customFields?.checkout_snapshot,
+    row?.checkoutSnapshot,
+    row?.checkout_snapshot,
+    row?.purchaseSnapshot,
+    row?.purchase_snapshot,
+    row?.custom_fields?.checkoutSnapshot,
+    row?.custom_fields?.checkout_snapshot,
+    row?.customFields?.checkoutSnapshot,
+    row?.customFields?.checkout_snapshot,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parseObjectCandidate(candidate);
+    if (Object.keys(parsed).length > 0) {
+      return parsed;
+    }
+  }
+
+  return {};
+}
+
+function filterProfilesByUser(rows: any[], userId?: string): any[] {
+  const expectedUserId = String(userId || "").trim();
+  if (!expectedUserId) {
+    return rows;
+  }
+
+  return rows.filter((row: any) => {
+    const owner = String(row?.user_id || row?.userId || "").trim();
+    if (!owner) {
+      // Keep rows when backend omits owner on /profiles/my responses.
+      return true;
+    }
+    return owner === expectedUserId;
+  });
+}
+
 function resolveAccountStatus(payload: any): string {
   const candidates = [
     payload,
@@ -2783,21 +2854,25 @@ export function sendAppUpdatePushNotification(payload: {
 
 export function getMyEsims(userId?: string): Promise<ApiResponse> {
   return (async () => {
-    const profilesResponse = await requestApi("/esim-access/profiles/my", {
-      includeAuth: true,
-      query: {
-        limit: 100,
-        offset: 0,
-        userId: userId || undefined,
-      },
-    });
+    const fetchProfiles = async (bustCache = false) =>
+      requestApi("/esim-access/profiles/my", {
+        includeAuth: true,
+        query: {
+          limit: 100,
+          offset: 0,
+          userId: userId || undefined,
+          ...(bustCache ? { ts: Date.now() } : {}),
+        },
+      });
+
+    const profilesResponse = await fetchProfiles(false);
 
     if (!profilesResponse.success) {
       return profilesResponse;
     }
 
     const data = unwrapApiData(profilesResponse) || profilesResponse;
-    const rows = Array.isArray(data?.profiles)
+    const initialRows = Array.isArray(data?.profiles)
       ? data.profiles
       : Array.isArray(data?.rows)
       ? data.rows
@@ -2806,10 +2881,49 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
       : Array.isArray(data)
       ? data
       : [];
-    const filtered = userId
-      ? rows.filter((row: any) => String(row?.user_id || row?.userId || "").trim() === String(userId).trim())
-      : rows;
+    let filtered = filterProfilesByUser(initialRows, userId);
+
+    if (filtered.length === 0) {
+      const retryResponse = await fetchProfiles(true);
+      if (retryResponse.success) {
+        const retryData = unwrapApiData(retryResponse) || retryResponse;
+        const retryRows = Array.isArray(retryData?.profiles)
+          ? retryData.profiles
+          : Array.isArray(retryData?.rows)
+          ? retryData.rows
+          : Array.isArray(retryData?.items)
+          ? retryData.items
+          : Array.isArray(retryData)
+          ? retryData
+          : [];
+        filtered = filterProfilesByUser(retryRows, userId);
+      }
+    }
+
     const mapped = filtered.map((row: any) => {
+      const rowRecord = toObjectRecord(row);
+      const customFields = mergeProfileCustomFields(rowRecord);
+      const checkoutSnapshot = extractCheckoutSnapshot(rowRecord, customFields);
+      const snapshotCountry = toObjectRecord(checkoutSnapshot?.country);
+      const snapshotPlan = toObjectRecord(checkoutSnapshot?.plan);
+      const snapshotCountryCode = toUpper(
+        snapshotCountry?.code ||
+          snapshotCountry?.iso ||
+          checkoutSnapshot?.countryCode ||
+          checkoutSnapshot?.country_code,
+      );
+      const snapshotCountryName = toString(
+        snapshotCountry?.name ||
+          checkoutSnapshot?.countryName ||
+          checkoutSnapshot?.country_name ||
+          checkoutSnapshot?.country,
+      );
+      const snapshotPlanName = toString(
+        snapshotPlan?.name ||
+          checkoutSnapshot?.planName ||
+          checkoutSnapshot?.packageName ||
+          checkoutSnapshot?.name,
+      );
       const usage = extractCanonicalUsageMb(row);
       const totalGb = usage.totalMb / 1024;
       const usedGb = usage.usedMb / 1024;
@@ -2819,32 +2933,38 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
       const hasDaysLeft = Number.isFinite(computedDaysLeft) && computedDaysLeft >= 0;
       const daysLeft = hasDaysLeft ? Math.max(0, Math.floor(computedDaysLeft)) : 0;
       const countryCode = String(
-        row?.country_code ||
+        snapshotCountryCode ||
+          customFields?.countryCode ||
+          customFields?.country_code ||
+          row?.country_code ||
           row?.countryCode ||
-          row?.custom_fields?.countryCode ||
-          row?.custom_fields?.country_code ||
           "",
       )
         .trim()
         .toUpperCase();
+      const countryName = String(
+        snapshotCountryName ||
+          customFields?.countryName ||
+          customFields?.country_name ||
+          customFields?.country ||
+          row?.country_name ||
+          row?.countryName ||
+          countryCode ||
+          "Unknown",
+      ).trim();
+      const planName = String(
+        customFields?.packageName ||
+          customFields?.package_name ||
+          snapshotPlanName ||
+          row?.country_name ||
+          row?.countryName ||
+          "Travel Plan",
+      ).trim();
       return {
         id: String(row?.id || row?.iccid || row?.esim_tran_no || ""),
         userId: String(row?.user_id || row?.userId || ""),
-        name: String(
-          row?.custom_fields?.packageName ||
-            row?.custom_fields?.package_name ||
-            row?.country_name ||
-            row?.countryName ||
-            "Travel Plan",
-        ),
-        country: String(
-          row?.country_name ||
-            row?.countryName ||
-            row?.custom_fields?.countryName ||
-            row?.custom_fields?.country_name ||
-            countryCode ||
-            "Unknown",
-        ),
+        name: planName,
+        country: countryName,
         flag: countryFlag(countryCode),
         status: mapProfileStatus(row),
         dataUsed: usedGb,
@@ -2863,16 +2983,41 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
         activatedDate: row?.activated_at || row?.activatedAt || "",
         activatedAt: row?.activated_at || row?.activatedAt || "",
         expiresAt: row?.expires_at || row?.expiresAt || "",
-        activationCode: row?.activation_code || row?.activationCode || "",
-        installUrl: row?.install_url || row?.installUrl || row?.qr_code_url || row?.qrCodeUrl || "",
+        activationCode:
+          row?.activation_code ||
+          row?.activationCode ||
+          customFields?.activationCode ||
+          customFields?.activation_code ||
+          "",
+        installUrl:
+          row?.install_url ||
+          row?.installUrl ||
+          row?.qr_code_url ||
+          row?.qrCodeUrl ||
+          customFields?.installUrl ||
+          customFields?.install_url ||
+          customFields?.qrCodeUrl ||
+          customFields?.qr_code_url ||
+          "",
         iccid: row?.iccid || "",
         esimTranNo: row?.esim_tran_no || row?.esimTranNo || "",
         orderReference:
           row?.provider_order_no ||
-          row?.custom_fields?.orderReference ||
-          row?.custom_fields?.order_number ||
+          customFields?.providerOrderNo ||
+          customFields?.provider_order_no ||
+          customFields?.orderReference ||
+          customFields?.order_reference ||
+          customFields?.orderNumber ||
+          customFields?.order_number ||
           row?.esim_tran_no ||
           "",
+        customFields,
+        purchaseSnapshot: {
+          ...checkoutSnapshot,
+          name: snapshotPlanName || planName,
+          country: snapshotCountryName || countryName,
+          countryCode: snapshotCountryCode || countryCode,
+        },
         raw: row,
       };
     });

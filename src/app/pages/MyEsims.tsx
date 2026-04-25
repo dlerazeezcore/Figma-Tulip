@@ -1,4 +1,4 @@
-import { ArrowLeft, Globe, Calendar, Database, QrCode, Zap, Power, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
+import { ArrowLeft, Globe, Database, QrCode, Zap, Power, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -33,24 +33,6 @@ function formatDataLabelFromMb(valueMb: number): string {
   }
 
   return `${formatNumber(mb)}MB`;
-}
-
-function formatDate(value: string): string {
-  const text = String(value || "").trim();
-  if (!text) {
-    return "-";
-  }
-
-  const parsed = new Date(text);
-  if (Number.isNaN(parsed.getTime())) {
-    return text;
-  }
-
-  return parsed.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 export function MyEsims() {
@@ -284,7 +266,23 @@ export function MyEsims() {
                         </div>
                       </div>
                     </div>
-                    {getStatusBadge(esim.status)}
+                    <div className="flex flex-col items-end gap-2 text-end">
+                      {getStatusBadge(esim.status)}
+                      {showTopUp && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 px-3 text-[11px] rounded-full font-semibold shadow-sm bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/50"
+                          disabled={!esim.canTopUp || isBusy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleTopUp(esim);
+                          }}
+                        >
+                          {t("Top up")}
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {esim.dataTotal > 0 && (
@@ -320,26 +318,7 @@ export function MyEsims() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-card border border-gray-100 dark:border-border mb-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-xs text-gray-600 dark:text-muted-foreground">{t("Valid until")}</span>
-                    </div>
-                    <div className="text-end">
-                      <p className="text-sm font-medium text-gray-900 dark:text-foreground">{formatDate(esim.validUntil)}</p>
-                      {!esim.activatedDate ? (
-                        <p className="text-xs text-gray-500 dark:text-muted-foreground/60">{t("Not activated yet")}</p>
-                      ) : esim.status === "expired" || (esim.hasDaysLeft && esim.daysLeft <= 0) ? (
-                        <p className="text-xs text-red-600 dark:text-red-400">{t("Expired/Inactive")}</p>
-                      ) : esim.hasDaysLeft && esim.daysLeft > 0 ? (
-                        <p className="text-xs text-gray-500 dark:text-muted-foreground/60">{t('days_left', { count: esim.daysLeft })}</p>
-                      ) : (
-                        <p className="text-xs text-gray-500">-</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className={`grid gap-2 ${showTopUp ? "grid-cols-3" : "grid-cols-2"}`}>
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="outline"
                       className="h-10 text-xs rounded-xl border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent"
@@ -361,16 +340,6 @@ export function MyEsims() {
                       )}
                       {isBusy ? t("Activating...") : t(activateLabel)}
                     </Button>
-                    {showTopUp && (
-                      <Button
-                        variant="outline"
-                        className="h-10 text-xs rounded-xl border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent"
-                        disabled={!esim.canTopUp || isBusy}
-                        onClick={() => void handleTopUp(esim)}
-                      >
-                        {t("Top up")}
-                      </Button>
-                    )}
                   </div>
                 </div>
               </Card>

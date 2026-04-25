@@ -606,14 +606,79 @@ function buildCountryCodeByName(destinations: unknown): Map<string, string> {
   return map;
 }
 
+function readSnapshotCountryCode(...sources: any[]): string {
+  for (const source of sources) {
+    if (!source || typeof source !== "object") {
+      continue;
+    }
+    const snapshot = source?.purchaseSnapshot && typeof source.purchaseSnapshot === "object"
+      ? source.purchaseSnapshot
+      : {};
+    const country = snapshot?.country && typeof snapshot.country === "object"
+      ? snapshot.country
+      : {};
+
+    const code = String(
+      snapshot?.countryCode ||
+      snapshot?.country_code ||
+      country?.code ||
+      country?.iso ||
+      "",
+    ).trim().toUpperCase();
+    if (code.length === 2) {
+      return code;
+    }
+  }
+
+  return "";
+}
+
+function readSnapshotCountryName(...sources: any[]): string {
+  for (const source of sources) {
+    if (!source || typeof source !== "object") {
+      continue;
+    }
+    const snapshot = source?.purchaseSnapshot && typeof source.purchaseSnapshot === "object"
+      ? source.purchaseSnapshot
+      : {};
+    const country = snapshot?.country && typeof snapshot.country === "object"
+      ? snapshot.country
+      : {};
+
+    const name = String(
+      snapshot?.countryName ||
+      snapshot?.country_name ||
+      country?.name ||
+      snapshot?.country ||
+      "",
+    ).trim();
+    if (name) {
+      return name;
+    }
+  }
+
+  return "";
+}
+
 function resolveCountryCode(row: any, raw: any, countryCodeByName: Map<string, string>): string {
+  const snapshotCode = readSnapshotCountryCode(row, raw);
+  if (snapshotCode.length === 2) {
+    return snapshotCode;
+  }
+
   const customCode = String(
     row?.customFields?.countryCode ||
+    row?.customFields?.country_code ||
     row?.custom_fields?.countryCode ||
+    row?.custom_fields?.country_code ||
     row?.purchaseSnapshot?.countryCode ||
+    row?.purchaseSnapshot?.country_code ||
     raw?.customFields?.countryCode ||
+    raw?.customFields?.country_code ||
     raw?.custom_fields?.countryCode ||
+    raw?.custom_fields?.country_code ||
     raw?.purchaseSnapshot?.countryCode ||
+    raw?.purchaseSnapshot?.country_code ||
     ""
   ).trim().toUpperCase();
 
@@ -632,12 +697,25 @@ function resolveCountryCode(row: any, raw: any, countryCodeByName: Map<string, s
   }
 
   const countryName = String(
+    readSnapshotCountryName(row, raw) ||
     row?.customFields?.country ||
+    row?.customFields?.countryName ||
+    row?.customFields?.country_name ||
     row?.custom_fields?.country ||
+    row?.custom_fields?.countryName ||
+    row?.custom_fields?.country_name ||
     row?.purchaseSnapshot?.country ||
+    row?.purchaseSnapshot?.countryName ||
+    row?.purchaseSnapshot?.country_name ||
     raw?.customFields?.country ||
+    raw?.customFields?.countryName ||
+    raw?.customFields?.country_name ||
     raw?.custom_fields?.country ||
+    raw?.custom_fields?.countryName ||
+    raw?.custom_fields?.country_name ||
     raw?.purchaseSnapshot?.country ||
+    raw?.purchaseSnapshot?.countryName ||
+    raw?.purchaseSnapshot?.country_name ||
     raw?.country || row?.country || ""
   ).trim();
   if (countryName) {
@@ -662,12 +740,12 @@ function resolveCountryCode(row: any, raw: any, countryCodeByName: Map<string, s
 
 function buildActivationInstallUrl(installUrl: string, activationCode: string): string {
   const cardData = extractActivationCardData(installUrl, activationCode);
-  if (cardData) {
+  if (cardData && /^lpa:/i.test(cardData)) {
     return buildAppleActivationUrl(cardData);
   }
 
   const normalizedInstallUrl = normalizeInstallUrl(installUrl);
-  if (normalizedInstallUrl) {
+  if (normalizedInstallUrl && /^lpa:/i.test(normalizedInstallUrl)) {
     return normalizedInstallUrl;
   }
 
@@ -704,7 +782,11 @@ function normalizeActivationLaunchUrl(value: unknown): string {
     return "";
   }
 
-  if (/^https?:\/\//i.test(text) || /^lpa:/i.test(text)) {
+  if (/^lpa:/i.test(text)) {
+    return text;
+  }
+
+  if (/^https:\/\/esimsetup\.apple\.com\/esim_qrcode_provisioning/i.test(text)) {
     return text;
   }
 
@@ -744,7 +826,12 @@ function buildQrPayload(installUrl: string, activationCode: string, activationUr
     return activationUrl;
   }
 
-  return cardData || install || activationUrl || String(activationCode || "").trim();
+  const directCode = String(activationCode || "").trim();
+  if (directCode && /^lpa:/i.test(directCode)) {
+    return directCode;
+  }
+
+  return "";
 }
 
 function resolveValidUntil(
@@ -877,8 +964,16 @@ function normalizeMyEsim(
     ? "pending"
     : "inactive";
 
-  const activationCode = String(raw?.activationCode || row?.qrCode || "").trim();
-  const installUrl = normalizeInstallUrl(raw?.installUrl || row?.installUrl);
+  const activationCode = String(
+    raw?.activationCode ||
+    raw?.activation_code ||
+    row?.activationCode ||
+    row?.activation_code ||
+    row?.qrCode ||
+    raw?.qrCode ||
+    "",
+  ).trim();
+  const installUrl = normalizeInstallUrl(raw?.installUrl || raw?.install_url || row?.installUrl || row?.install_url);
   const activationUrl = buildActivationInstallUrl(installUrl, activationCode);
   const qrPayload = buildQrPayload(installUrl, activationCode, activationUrl);
   const activatedDate = String(
