@@ -42,10 +42,10 @@ async function generate() {
   const contentsJson = {
     "images": [
       {
-        "idiom": "ios-marketing",
+        "idiom": "universal",
         "size": "1024x1024",
-        "scale": "1x",
-        "filename": "AppIcon-1024.png"
+        "filename": "AppIcon-1024.png",
+        "platform": "ios"
       }
     ],
     "info": {
