@@ -30,3 +30,7 @@ android/app/src/main/assets/public
 android/app/build
 bin-debug
 bin-release
+
+# iOS Xcode user-state hygiene
+ios/**/xcuserdata/
+*.xcuserstate
