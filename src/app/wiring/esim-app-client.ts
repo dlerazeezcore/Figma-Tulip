@@ -108,6 +108,15 @@ function mapProfileStatus(row: any): string {
     row?.status ||
       row?.app_status ||
       row?.provider_status ||
+      row?.esimStatus ||
+      row?.esim_status ||
+      row?.smdpStatus ||
+      row?.smdp_status ||
+      row?.orderStatus ||
+      row?.order_status ||
+      row?.customFields?.shadowStatus ||
+      row?.custom_fields?.shadowStatus ||
+      row?.custom_fields?.shadow_status ||
       "",
   ).trim().toLowerCase();
   const terminal = ["expired", "cancelled", "canceled", "revoked", "refunded", "voided", "closed"];
@@ -117,13 +126,108 @@ function mapProfileStatus(row: any): string {
   if (raw === "active") {
     return "active";
   }
-  if (raw === "pending") {
-    return "pending";
+  if (
+    raw === "pending" ||
+    raw === "booked" ||
+    raw === "got_resource" ||
+    raw === "got-resource" ||
+    raw === "released" ||
+    raw === "release"
+  ) {
+    return "inactive";
   }
   if (raw === "inactive") {
     return "inactive";
   }
   return "inactive";
+}
+
+export type EsimProfileStatus = "inactive" | "active" | "expired";
+
+export interface EsimProfile {
+  id: string;
+  userId: string;
+  providerOrderNo: string;
+  esimTranNo: string;
+  iccid: string;
+  countryCode: string;
+  countryName: string;
+  status: EsimProfileStatus;
+  installed: boolean;
+  installedAt: string;
+  activatedAt: string;
+  daysLeft: number;
+  bundleExpiresAt: string;
+  expiresAt: string;
+  supportTopUpType: number;
+  activationCode: string;
+  installUrl: string;
+  customFields: AnyRecord;
+  orderReference: string;
+  name: string;
+  country: string;
+  flag: string;
+  dataUsed: number;
+  dataTotal: number;
+  dataRemaining: number;
+  dataUsedMb: number;
+  dataTotalMb: number;
+  dataRemainingMb: number;
+  usageUnit: "MB" | "GB" | "KB";
+  packageDataMb: number;
+  hasDaysLeft: boolean;
+  validityDays: number;
+  activatedDate: string;
+  purchaseSnapshot: AnyRecord;
+  raw: AnyRecord;
+}
+
+function hasExplicitBooleanValue(value: unknown): boolean {
+  if (value === true || value === false) {
+    return true;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+  const text = String(value ?? "").trim().toLowerCase();
+  return text.length > 0 && text !== "null" && text !== "undefined";
+}
+
+function resolveInstalledFromProfile(row: AnyRecord, customFields: AnyRecord): boolean {
+  const installedCandidates: unknown[] = [
+    row?.installed,
+    row?.isInstalled,
+    row?.is_installed,
+    row?.customFields?.installed,
+    row?.custom_fields?.installed,
+    customFields?.installed,
+    customFields?.isInstalled,
+    customFields?.is_installed,
+  ];
+
+  for (const candidate of installedCandidates) {
+    if (hasExplicitBooleanValue(candidate)) {
+      return parseBoolean(candidate);
+    }
+  }
+
+  const installedAt = toString(
+    row?.installedAt ||
+      row?.installed_at ||
+      customFields?.installedAt ||
+      customFields?.installed_at,
+  );
+  return Boolean(installedAt);
+}
+
+function resolveSupportTopUpTypeFromProfile(row: AnyRecord, customFields: AnyRecord): number {
+  const value = pickFirstNonNegativeNumber([
+    row?.supportTopUpType,
+    row?.support_top_up_type,
+    customFields?.supportTopUpType,
+    customFields?.support_top_up_type,
+  ]);
+  return value === null ? 0 : Math.max(0, Math.floor(value));
 }
 
 function pickFirstNonNegativeNumber(values: unknown[]): number | null {
@@ -356,15 +460,235 @@ function parseObjectCandidate(value: unknown): AnyRecord {
 }
 
 function extractProfilesRowsFromPayload(payload: any): any[] {
-  return Array.isArray(payload?.profiles)
-    ? payload.profiles
-    : Array.isArray(payload?.rows)
-    ? payload.rows
-    : Array.isArray(payload?.items)
-    ? payload.items
-    : Array.isArray(payload)
-    ? payload
-    : [];
+  const candidates = [
+    payload?.profiles,
+    payload?.rows,
+    payload?.items,
+    payload?.list,
+    payload?.result,
+    payload?.data?.profiles,
+    payload?.data?.rows,
+    payload?.data?.items,
+    payload?.data?.list,
+    payload?.data?.result,
+    payload?.data?.data?.profiles,
+    payload?.data?.data?.rows,
+    payload?.data?.data?.items,
+    payload?.obj?.profiles,
+    payload?.obj?.rows,
+    payload?.obj?.items,
+    payload?.obj?.list,
+    payload?.result?.profiles,
+    payload?.result?.rows,
+    payload?.result?.items,
+    payload?.payload?.profiles,
+    payload?.payload?.rows,
+    payload?.payload?.items,
+    Array.isArray(payload) ? payload : null,
+  ].filter((entry) => Array.isArray(entry)) as any[][];
+
+  return mergeProfilesRows(...candidates);
+}
+
+function extractOrderRowsFromPayload(payload: any): any[] {
+  const candidates = [
+    payload?.orders,
+    payload?.orderItems,
+    payload?.items,
+    payload?.rows,
+    payload?.list,
+    payload?.result,
+    payload?.data?.orders,
+    payload?.data?.orderItems,
+    payload?.data?.items,
+    payload?.data?.rows,
+    payload?.data?.list,
+    payload?.data?.result,
+    payload?.data?.data?.orders,
+    payload?.data?.data?.orderItems,
+    payload?.data?.data?.items,
+    payload?.obj?.orders,
+    payload?.obj?.orderItems,
+    payload?.obj?.items,
+    payload?.obj?.rows,
+    payload?.payload?.orders,
+    payload?.payload?.orderItems,
+    payload?.payload?.items,
+    Array.isArray(payload) ? payload : null,
+  ].filter((entry) => Array.isArray(entry)) as any[][];
+  return mergeProfilesRows(...candidates);
+}
+
+function mapOrderRowToProfileFallback(row: any): AnyRecord {
+  const rowRecord = toObjectRecord(row);
+  const customFields = mergeProfileCustomFields(rowRecord);
+  const checkoutSnapshot = extractCheckoutSnapshot(rowRecord, customFields);
+  const snapshotCountry = toObjectRecord(checkoutSnapshot?.country);
+  const snapshotPlan = toObjectRecord(checkoutSnapshot?.plan);
+
+  const countryCode = toUpper(
+    rowRecord?.country_code ||
+      rowRecord?.countryCode ||
+      customFields?.countryCode ||
+      customFields?.country_code ||
+      snapshotCountry?.code ||
+      snapshotCountry?.iso,
+  );
+  const countryName = toString(
+    rowRecord?.country_name ||
+      rowRecord?.countryName ||
+      customFields?.countryName ||
+      customFields?.country_name ||
+      customFields?.country ||
+      snapshotCountry?.name ||
+      countryCode ||
+      "Unknown",
+  );
+  const packageDataMb = Math.max(
+    0,
+    Math.floor(
+      pickFirstNonNegativeNumber([
+        rowRecord?.packageDataMb,
+        rowRecord?.package_data_mb,
+        rowRecord?.totalDataMb,
+        rowRecord?.total_data_mb,
+        rowRecord?.totalVolumeMb,
+        rowRecord?.total_volume_mb,
+        customFields?.packageDataMb,
+        customFields?.package_data_mb,
+        customFields?.totalDataMb,
+        customFields?.total_data_mb,
+      ]) ?? toNumber(snapshotPlan?.data, 0) * 1024,
+    ),
+  );
+
+  const providerOrderNo = toString(
+    rowRecord?.provider_order_no ||
+      rowRecord?.providerOrderNo ||
+      rowRecord?.orderNo ||
+      rowRecord?.order_no ||
+      rowRecord?.orderReference ||
+      rowRecord?.order_reference,
+  );
+  const esimTranNo = toString(
+    rowRecord?.esim_tran_no ||
+      rowRecord?.esimTranNo ||
+      rowRecord?.transactionId ||
+      rowRecord?.transaction_id,
+  );
+  const iccid = toString(rowRecord?.iccid);
+  const status = toString(
+    rowRecord?.status ||
+      rowRecord?.orderStatus ||
+      rowRecord?.order_status ||
+      rowRecord?.itemStatus ||
+      rowRecord?.item_status ||
+      customFields?.status ||
+      customFields?.orderStatus ||
+      customFields?.order_status ||
+      customFields?.shadowStatus ||
+      "booked",
+  );
+
+  return {
+    id: toString(rowRecord?.id || providerOrderNo || esimTranNo || iccid || `order-${Date.now()}`),
+    user_id: toString(rowRecord?.user_id || rowRecord?.userId),
+    userId: toString(rowRecord?.user_id || rowRecord?.userId),
+    iccid,
+    country_code: countryCode,
+    countryCode,
+    country_name: countryName,
+    countryName,
+    status,
+    installed: false,
+    installed_at: "",
+    installedAt: "",
+    activated_at: "",
+    activatedAt: "",
+    expires_at: "",
+    expiresAt: "",
+    totalDataMb: packageDataMb,
+    packageDataMb,
+    usedDataMb: 0,
+    remainingDataMb: packageDataMb,
+    usageUnit: "MB",
+    activation_code: "",
+    activationCode: "",
+    install_url: "",
+    installUrl: "",
+    esim_tran_no: esimTranNo,
+    esimTranNo,
+    provider_order_no: providerOrderNo,
+    providerOrderNo,
+    custom_fields: {
+      ...customFields,
+      usageUnit: String(customFields?.usageUnit || "MB"),
+      packageDataMb,
+      checkoutSnapshot,
+      shadowStatus: String(customFields?.shadowStatus || status || "BOOKED"),
+    },
+    raw: rowRecord,
+  };
+}
+
+function hasInactiveLikeRows(rows: any[]): boolean {
+  return rows.some((row) => {
+    const statusText = String(
+      row?.status ||
+        row?.raw?.status ||
+        row?.esimStatus ||
+        row?.smdpStatus ||
+        row?.orderStatus ||
+        row?.order_status ||
+        row?.customFields?.shadowStatus ||
+        row?.custom_fields?.shadowStatus ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
+    if (!statusText) {
+      return false;
+    }
+    return (
+      statusText.includes("inactive") ||
+      statusText.includes("pending") ||
+      statusText.includes("booked") ||
+      statusText.includes("got_resource") ||
+      statusText.includes("got-resource") ||
+      statusText.includes("release")
+    );
+  });
+}
+
+async function fetchOrderRowsFallback(): Promise<any[]> {
+  const paths = [
+    "/esim-access/orders/my",
+    "/esim-access/orders",
+    "/esim/orders/my",
+  ];
+  let merged: any[] = [];
+
+  for (const path of paths) {
+    const response = await requestApi(path, {
+      includeAuth: true,
+      query: {
+        limit: 100,
+        offset: 0,
+        status: "all",
+      },
+    });
+    if (!response.success) {
+      continue;
+    }
+    const data = unwrapApiData(response) || response;
+    const rows = extractOrderRowsFromPayload(data).map(mapOrderRowToProfileFallback);
+    if (rows.length === 0) {
+      continue;
+    }
+    merged = mergeProfilesRows(merged, rows);
+  }
+
+  return merged;
 }
 
 function getProfileIdentityKey(row: any, index: number): string {
@@ -3138,14 +3462,24 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
         },
       });
 
+    const collectProfileRows = (response: ApiResponse<any>): any[] => {
+      const payload = response as any;
+      const fromData = payload?.data;
+      const fromUnwrapped = unwrapApiData(response);
+      return mergeProfilesRows(
+        extractProfilesRowsFromPayload(fromData),
+        extractProfilesRowsFromPayload(fromUnwrapped),
+        extractProfilesRowsFromPayload(payload),
+      );
+    };
+
     const profilesResponse = await fetchProfiles(true);
 
     if (!profilesResponse.success) {
       return profilesResponse;
     }
 
-    const data = unwrapApiData(profilesResponse) || profilesResponse;
-    const initialRows = extractProfilesRowsFromPayload(data);
+    const initialRows = collectProfileRows(profilesResponse);
     let mergedRows = initialRows;
 
     const broadQueryCandidates: AnyRecord[] = [
@@ -3159,8 +3493,7 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
       if (!probe.success) {
         continue;
       }
-      const probeData = unwrapApiData(probe) || probe;
-      const probeRows = extractProfilesRowsFromPayload(probeData);
+      const probeRows = collectProfileRows(probe);
       if (probeRows.length === 0) {
         continue;
       }
@@ -3176,8 +3509,7 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
         if (!retryResponse.success) {
           continue;
         }
-        const retryData = unwrapApiData(retryResponse) || retryResponse;
-        const retryRows = extractProfilesRowsFromPayload(retryData);
+        const retryRows = collectProfileRows(retryResponse);
         filtered = mergeProfilesRows(filtered, retryRows);
         if (filtered.length > 0) {
           break;
@@ -3185,7 +3517,12 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
       }
     }
 
-    const mapped = filtered.map((row: any) => {
+    const fallbackOrderRows = await fetchOrderRowsFallback();
+    if (fallbackOrderRows.length > 0) {
+      filtered = mergeProfilesRows(filtered, fallbackOrderRows);
+    }
+
+    const mapped: EsimProfile[] = filtered.map((row: any) => {
       const rowRecord = toObjectRecord(row);
       const customFields = mergeProfileCustomFields(rowRecord);
       const checkoutSnapshot = extractCheckoutSnapshot(rowRecord, customFields);
@@ -3218,6 +3555,8 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
       const hasDaysLeft = Number.isFinite(computedDaysLeft) && computedDaysLeft >= 0;
       const daysLeft = hasDaysLeft ? Math.max(0, Math.floor(computedDaysLeft)) : 0;
       const bundleExpiresAt = resolveBundleExpiresAt(rowRecord, customFields, checkoutSnapshot);
+      const supportTopUpType = resolveSupportTopUpTypeFromProfile(rowRecord, customFields);
+      const installed = resolveInstalledFromProfile(rowRecord, customFields);
       const countryCode = String(
         snapshotCountryCode ||
           customFields?.countryCode ||
@@ -3246,13 +3585,29 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
           row?.countryName ||
           "Travel Plan",
       ).trim();
+      const status = mapProfileStatus(row) as EsimProfileStatus;
+      const providerOrderNo = String(
+        row?.provider_order_no ||
+          row?.providerOrderNo ||
+          customFields?.providerOrderNo ||
+          customFields?.provider_order_no ||
+          customFields?.orderNo ||
+          customFields?.order_no ||
+          customFields?.orderReference ||
+          customFields?.order_reference ||
+          "",
+      ).trim();
+      const esimTranNo = String(row?.esim_tran_no || row?.esimTranNo || "").trim();
       return {
         id: String(row?.id || row?.iccid || row?.esim_tran_no || ""),
         userId: String(row?.user_id || row?.userId || ""),
+        providerOrderNo,
         name: planName,
         country: countryName,
+        countryName,
+        countryCode,
         flag: countryFlag(countryCode),
-        status: mapProfileStatus(row),
+        status,
         dataUsed: usedGb,
         dataTotal: totalGb,
         dataRemaining: remainingGb,
@@ -3264,12 +3619,13 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
         daysLeft,
         hasDaysLeft,
         validityDays,
-        installed: Boolean(row?.installed || row?.installed_at || row?.installedAt),
+        installed,
         installedAt: row?.installed_at || row?.installedAt || "",
         activatedDate: row?.activated_at || row?.activatedAt || "",
         activatedAt: row?.activated_at || row?.activatedAt || "",
         bundleExpiresAt,
         expiresAt: row?.expires_at || row?.expiresAt || "",
+        supportTopUpType,
         activationCode:
           row?.activation_code ||
           row?.activationCode ||
@@ -3287,11 +3643,9 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
           customFields?.qr_code_url ||
           "",
         iccid: row?.iccid || "",
-        esimTranNo: row?.esim_tran_no || row?.esimTranNo || "",
+        esimTranNo,
         orderReference:
-          row?.provider_order_no ||
-          customFields?.providerOrderNo ||
-          customFields?.provider_order_no ||
+          providerOrderNo ||
           customFields?.orderReference ||
           customFields?.order_reference ||
           customFields?.orderNumber ||
@@ -3530,7 +3884,25 @@ export function purchaseComplete(payload: AnyRecord): Promise<ApiResponse> {
     }
 
     const orderData = unwrapApiData(orderResponse) || orderResponse.data || {};
-    const providerOrderNo = toString(orderData?.database?.providerOrderNo || orderData?.provider?.obj?.orderNo);
+    const orderResponseData = (orderResponse as any)?.data || {};
+    const providerOrderNo = toString(
+      orderData?.database?.providerOrderNo ||
+        orderData?.provider?.obj?.orderNo ||
+        orderData?.providerOrderNo ||
+        orderData?.provider_order_no ||
+        orderData?.orderNo ||
+        orderData?.order_no ||
+        orderData?.obj?.orderNo ||
+        orderData?.obj?.order_no ||
+        orderResponseData?.database?.providerOrderNo ||
+        orderResponseData?.provider?.obj?.orderNo ||
+        orderResponseData?.providerOrderNo ||
+        orderResponseData?.provider_order_no ||
+        orderResponseData?.orderNo ||
+        orderResponseData?.order_no ||
+        orderResponseData?.obj?.orderNo ||
+        orderResponseData?.obj?.order_no,
+    );
 
     let syncResult: ApiResponse | null = null;
     if (providerOrderNo) {

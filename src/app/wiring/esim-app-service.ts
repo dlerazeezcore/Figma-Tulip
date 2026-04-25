@@ -463,18 +463,26 @@ export function saveMyEsimShadowFromPurchaseResult(
 
   const payload = purchaseResult as AnyRecord;
   const esimList = extractEsimListFromPurchasePayload(payload);
-  if (esimList.length === 0) {
-    return;
-  }
-
   const orderNoFallback = toTrimmed(
     payload?.order?.provider?.obj?.orderNo ||
       payload?.provider?.obj?.orderNo ||
-      payload?.order?.database?.providerOrderNo,
+      payload?.order?.database?.providerOrderNo ||
+      payload?.order?.providerOrderNo ||
+      payload?.order?.provider_order_no ||
+      payload?.order?.orderNo ||
+      payload?.order?.order_no ||
+      payload?.order?.obj?.orderNo ||
+      payload?.order?.obj?.order_no ||
+      payload?.orderNo ||
+      payload?.order_no ||
+      payload?.providerOrderNo ||
+      payload?.provider_order_no ||
+      payload?.obj?.orderNo ||
+      payload?.obj?.order_no,
   );
 
   const now = Date.now();
-  const newRows = esimList
+  const fromEsimList = esimList
     .map((entry: AnyRecord, index) => {
       const packageRow = Array.isArray(entry?.packageList) && entry.packageList.length > 0 ? entry.packageList[0] : {};
       const countryCode = toTrimmedUpper(packageRow?.locationCode || checkoutContext?.country?.code);
@@ -542,6 +550,68 @@ export function saveMyEsimShadowFromPurchaseResult(
     })
     .filter((row) => Boolean(getShadowIdentityKey(row)));
 
+  const fallbackRows: AnyRecord[] = [];
+  if (fromEsimList.length === 0 && orderNoFallback) {
+    const countryCode = toTrimmedUpper(checkoutContext?.country?.code);
+    const countryName = toTrimmed(
+      checkoutContext?.country?.name ||
+        resolveCountryName(countryCode) ||
+        countryCode ||
+        "Unknown",
+    );
+    const planDataGb = Math.max(0, toNumber(checkoutContext?.plan?.data, 0));
+    const fallbackDataMb = Math.max(0, Math.round(planDataGb * 1024));
+    const packageName = toTrimmed(countryName || "Travel Plan");
+    const shadowId = toTrimmed(`shadow-${orderNoFallback || now}-fallback`);
+    fallbackRows.push({
+      id: shadowId,
+      user_id: userId,
+      userId,
+      iccid: "",
+      country_code: countryCode,
+      countryCode,
+      country_name: countryName,
+      countryName: countryName,
+      status: "inactive",
+      installed: false,
+      installed_at: "",
+      installedAt: "",
+      activated_at: "",
+      activatedAt: "",
+      expires_at: "",
+      expiresAt: "",
+      totalDataMb: fallbackDataMb,
+      packageDataMb: fallbackDataMb,
+      usedDataMb: 0,
+      remainingDataMb: fallbackDataMb,
+      usageUnit: "MB",
+      activation_code: "",
+      activationCode: "",
+      install_url: "",
+      installUrl: "",
+      esim_tran_no: "",
+      esimTranNo: "",
+      provider_order_no: orderNoFallback,
+      providerOrderNo: orderNoFallback,
+      custom_fields: {
+        usageUnit: "MB",
+        packageDataMb: fallbackDataMb,
+        packageName,
+        countryCode,
+        countryName,
+        checkoutSnapshot: checkoutContext?.country && checkoutContext?.plan
+          ? {
+              country: checkoutContext.country,
+              plan: checkoutContext.plan,
+            }
+          : undefined,
+        shadowStatus: "BOOKED",
+      },
+      __shadowCreatedAt: now,
+    } as AnyRecord);
+  }
+
+  const newRows = [...fromEsimList, ...fallbackRows].filter((row) => Boolean(getShadowIdentityKey(row)));
   if (newRows.length === 0) {
     return;
   }

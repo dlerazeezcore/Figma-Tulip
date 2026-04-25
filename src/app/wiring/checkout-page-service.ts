@@ -6,6 +6,7 @@ import { getCurrencySettings } from "./catalog-service";
 import {
   completePendingPurchase,
   getLoyaltyStatus,
+  getMyEsims,
   purchaseWithFIB,
   purchaseWithLoyalty,
   saveMyEsimShadowFromPurchaseResult,
@@ -116,6 +117,11 @@ export function useCheckoutPageModel(): CheckoutPageModel {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [paymentId, setPaymentId] = useState("");
   const [paymentAmountIqd, setPaymentAmountIqd] = useState<number | null>(null);
+
+  const refreshProfilesAfterPurchase = () => {
+    // Warm latest profiles in background so Inactive tab reflects purchase immediately.
+    void getMyEsims();
+  };
   const [hasLoyaltyAccess, setHasLoyaltyAccess] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const processedPaymentReturnRef = useRef("");
@@ -184,6 +190,7 @@ export function useCheckoutPageModel(): CheckoutPageModel {
         }
 
         saveMyEsimShadowFromPurchaseResult(result.data || {}, checkoutData || undefined);
+        refreshProfilesAfterPurchase();
 
         toast.success("Payment completed", {
           description: "Your eSIM order is confirmed successfully.",
@@ -259,6 +266,7 @@ export function useCheckoutPageModel(): CheckoutPageModel {
       }
 
       saveMyEsimShadowFromPurchaseResult(result.data || {}, checkoutData || undefined);
+      refreshProfilesAfterPurchase();
 
       toast.success("Purchase successful", {
         description: `Your ${checkoutData?.plan.data || 0} GB eSIM for ${checkoutData?.country.name || "your destination"} is being activated.`,

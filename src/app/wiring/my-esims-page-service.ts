@@ -11,7 +11,7 @@ import { requestApi } from "./http";
 import { clearAuthSession, getUserId } from "./session";
 import type { ApiResponse } from "./types";
 
-export type MyEsimStatus = "active" | "inactive" | "expired" | "pending";
+export type MyEsimStatus = "active" | "inactive" | "expired";
 export type MyEsimTab = "active" | "inactive" | "expired";
 
 export interface MyEsimItem {
@@ -350,7 +350,7 @@ function isHiddenLifecycleStatus(value: unknown): boolean {
 }
 
 function shouldBucketEsimAsExpired(item: Pick<MyEsimItem, "status" | "rawStatus">): boolean {
-  return item.status === "expired" || isHiddenLifecycleStatus(`${item.status} ${item.rawStatus}`);
+  return item.status === "expired";
 }
 
 function safeSignalBlob(value: unknown): string {
@@ -1210,7 +1210,7 @@ function normalizeMyEsim(
     raw?.country || row?.country || "Unknown"
   );
   const isInstalled = toBoolean(raw?.installed ?? row?.installed);
-  const rawStatus = String(raw?.status || row?.status || "inactive");
+  const rawStatus = String(row?.status || raw?.status || "inactive");
 
   const dataUsed = Math.max(
     0,
@@ -1247,25 +1247,68 @@ function normalizeMyEsim(
     ? Math.max(0, Math.floor(extractNumber(backendDaysLeftRaw, 0)))
     : -1;
   const bundleExpiresAt = resolveBundleExpiresAt(row, raw);
-  const hiddenByStatus = isHiddenLifecycleStatus(normalizedRawStatus);
-  const statusFromBackend: MyEsimStatus = hiddenByStatus
-    ? "expired"
-    : normalizedRawStatus === "active"
-    ? "active"
-    : normalizedRawStatus === "pending"
-    ? "pending"
-    : "inactive";
+  const statusFromBackend: MyEsimStatus =
+    normalizedRawStatus === "expired"
+      ? "expired"
+      : normalizedRawStatus === "active" && isInstalled
+      ? "active"
+      : "inactive";
 
   const activationCode = String(
     raw?.activationCode ||
     raw?.activation_code ||
     row?.activationCode ||
     row?.activation_code ||
+    row?.customFields?.activationCode ||
+    row?.customFields?.activation_code ||
+    row?.custom_fields?.activationCode ||
+    row?.custom_fields?.activation_code ||
+    raw?.customFields?.activationCode ||
+    raw?.customFields?.activation_code ||
+    raw?.custom_fields?.activationCode ||
+    raw?.custom_fields?.activation_code ||
     row?.qrCode ||
     raw?.qrCode ||
     "",
   ).trim();
-  const installUrl = normalizeInstallUrl(raw?.installUrl || raw?.install_url || row?.installUrl || row?.install_url);
+  const installUrl = normalizeInstallUrl(
+    raw?.installUrl ||
+      raw?.install_url ||
+      raw?.shortUrl ||
+      raw?.short_url ||
+      raw?.qrCodeUrl ||
+      raw?.qr_code_url ||
+      row?.installUrl ||
+      row?.install_url ||
+      row?.shortUrl ||
+      row?.short_url ||
+      row?.qrCodeUrl ||
+      row?.qr_code_url ||
+      row?.customFields?.installUrl ||
+      row?.customFields?.install_url ||
+      row?.customFields?.shortUrl ||
+      row?.customFields?.short_url ||
+      row?.customFields?.qrCodeUrl ||
+      row?.customFields?.qr_code_url ||
+      row?.custom_fields?.installUrl ||
+      row?.custom_fields?.install_url ||
+      row?.custom_fields?.shortUrl ||
+      row?.custom_fields?.short_url ||
+      row?.custom_fields?.qrCodeUrl ||
+      row?.custom_fields?.qr_code_url ||
+      raw?.customFields?.installUrl ||
+      raw?.customFields?.install_url ||
+      raw?.customFields?.shortUrl ||
+      raw?.customFields?.short_url ||
+      raw?.customFields?.qrCodeUrl ||
+      raw?.customFields?.qr_code_url ||
+      raw?.custom_fields?.installUrl ||
+      raw?.custom_fields?.install_url ||
+      raw?.custom_fields?.shortUrl ||
+      raw?.custom_fields?.short_url ||
+      raw?.custom_fields?.qrCodeUrl ||
+      raw?.custom_fields?.qr_code_url,
+  );
   const activationUrl = buildActivationInstallUrl(installUrl, activationCode);
   const qrPayload = buildQrPayload(installUrl, activationCode, activationUrl);
   const activatedDate = String(
@@ -1290,12 +1333,12 @@ function normalizeMyEsim(
   const isActivated = isInstalled && (explicitActivationFlag || hasActivationDate || backendSaysActive);
   let hasDaysLeft = false;
   let daysLeft = -1;
-  if (hasActivationDate && backendDaysLeft >= 0) {
+  if (statusFromBackend === "active" && hasActivationDate && backendDaysLeft >= 0) {
     // Backend profiles/my `daysLeft` is the countdown source of truth.
     daysLeft = backendDaysLeft;
     hasDaysLeft = true;
   }
-  if (!isActivated) {
+  if (statusFromBackend !== "active" || !isActivated) {
     hasDaysLeft = false;
     daysLeft = -1;
   }
@@ -1307,16 +1350,10 @@ function normalizeMyEsim(
     isActivated,
   );
   const resolvedActivatedDate = activatedDate;
-  if (hiddenByStatus || isActivated) {
+  if (statusFromBackend === "expired" || isActivated) {
     clearActivationPending(activationPendingKeyParts);
   }
-  const finalStatus = !isActivated
-    ? "inactive"
-    : hiddenByStatus
-    ? "expired"
-    : statusFromBackend === "active" && hasDaysLeft && daysLeft <= 0
-    ? "expired"
-    : statusFromBackend;
+  const finalStatus = statusFromBackend;
 
   const countryCode = resolveCountryCode(row, raw, countryCodeByName);
   const flag = resolveDisplayFlag(raw?.flag || row?.flag, countryCode);
@@ -1351,8 +1388,11 @@ function normalizeMyEsim(
     qrPayload,
     hasTopUp,
     topUpPlanId: hasTopUp ? (topUp.planId || "") : "",
-    canShowQr: Boolean(qrPayload) && finalStatus !== "expired",
-    canActivate: finalStatus !== "expired" && !isActivated && Boolean(qrPayload),
+    canShowQr: finalStatus !== "expired" && Boolean(qrPayload || activationCode || installUrl),
+    canActivate:
+      finalStatus === "inactive" &&
+      !isActivated &&
+      Boolean(qrPayload || row?.iccid || raw?.iccid || transactionId || orderReference || id),
     canTopUp,
   };
 }
@@ -1363,9 +1403,6 @@ function statusPriority(status: MyEsimStatus): number {
   }
   if (status === "active") {
     return 3;
-  }
-  if (status === "pending") {
-    return 2;
   }
   return 1;
 }
@@ -1636,7 +1673,7 @@ async function enrichRowsWithOrderLifecycle(rows: any[]): Promise<any[]> {
 
 export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): Promise<MyEsimItem[]> {
   const includeTopUpSupport = options.includeTopUpSupport !== false;
-  const includeOrderLifecycle = options.includeOrderLifecycle !== false;
+  const includeOrderLifecycle = options.includeOrderLifecycle === true;
   const includeDestinationLookup = options.includeDestinationLookup !== false;
 
   const [myEsimsResponse, destinationsResponse] = await Promise.all([
@@ -1769,34 +1806,21 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
   const [selectedQrEsim, setSelectedQrEsim] = useState<MyEsimItem | null>(null);
   const lastRefreshAtRef = useRef(0);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
-  const inactiveRecoveryAttemptsRef = useRef(0);
-  const inactiveRecoveryTimerRef = useRef<number | null>(null);
 
   const activeEsims = useMemo(
-    () =>
-      esims.filter(
-        (esim) =>
-          esim.status === "active" &&
-          !shouldBucketEsimAsExpired(esim) &&
-          (!esim.hasDaysLeft || esim.daysLeft > 0),
-      ),
+    () => esims.filter((esim) => esim.status === "active"),
     [esims],
   );
   const inactiveEsims = useMemo(
-    () =>
-      esims.filter(
-        (esim) =>
-          !shouldBucketEsimAsExpired(esim) &&
-          (esim.status === "inactive" || esim.status === "pending"),
-      ),
+    () => esims.filter((esim) => esim.status === "inactive"),
     [esims],
   );
-  const expiredEsims = useMemo(() => esims.filter((esim) => shouldBucketEsimAsExpired(esim)), [esims]);
+  const expiredEsims = useMemo(() => esims.filter((esim) => esim.status === "expired"), [esims]);
 
   const loadVerifiedEsims = async () => {
     try {
       const verifiedRows = await loadMyEsimsPageContent({
-        includeOrderLifecycle: true,
+        includeOrderLifecycle: false,
         includeTopUpSupport: false,
       });
       setEsims(verifiedRows);
@@ -1862,43 +1886,6 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
   useEffect(() => {
     setSelectedTabState(readRequestedTab(searchParams.get("tab")));
   }, [searchParams]);
-
-  useEffect(() => {
-    return () => {
-      if (inactiveRecoveryTimerRef.current !== null) {
-        window.clearTimeout(inactiveRecoveryTimerRef.current);
-        inactiveRecoveryTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (selectedTab !== "inactive" || loading || inactiveEsims.length > 0) {
-      inactiveRecoveryAttemptsRef.current = 0;
-      if (inactiveRecoveryTimerRef.current !== null) {
-        window.clearTimeout(inactiveRecoveryTimerRef.current);
-        inactiveRecoveryTimerRef.current = null;
-      }
-      return;
-    }
-
-    if (inactiveRecoveryTimerRef.current !== null) {
-      return;
-    }
-
-    const attempt = inactiveRecoveryAttemptsRef.current;
-    if (attempt >= 3) {
-      return;
-    }
-
-    const delays = [900, 2100, 4200];
-    const delayMs = delays[attempt] ?? delays[delays.length - 1];
-    inactiveRecoveryTimerRef.current = window.setTimeout(() => {
-      inactiveRecoveryTimerRef.current = null;
-      inactiveRecoveryAttemptsRef.current += 1;
-      void refreshEsims(false, true);
-    }, delayMs);
-  }, [selectedTab, loading, inactiveEsims.length]);
 
   useEffect(() => {
     let mounted = true;
@@ -1986,13 +1973,18 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
     const nextActivationUrl = resolveActivationLaunchUrl(esim, responseRow);
 
     if (!nextActivationUrl) {
-      toast.error("Activation link is not available yet.");
+      if (response.success) {
+        toast.success("Activation request submitted");
+      } else {
+        toast.error("Activation link is not available yet.");
+      }
       await refreshEsims(false, true);
       return;
     }
 
     markActivationPending([esim.orderReference, esim.iccid, esim.id, esim.activationCode]);
     markEsimPendingInUi(esim);
+    void refreshEsims(false, true);
     toast.success("Opening activation");
     window.location.replace(nextActivationUrl);
   };
