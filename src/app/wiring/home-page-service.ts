@@ -239,14 +239,22 @@ export async function loadHomePopularContent(): Promise<HomePopularContent> {
 }
 
 export async function loadHomeActiveEsimContent(): Promise<HomeActiveEsim | null> {
-  // Home only needs a summary card, so avoid the heavier lifecycle/top-up enrichment pass here.
+  // Home only needs a summary card, but we need destination lookup to map country correctly
   const myEsimsRows = await loadMyEsimsPageContent({
     includeTopUpSupport: false,
     includeOrderLifecycle: false,
-    includeDestinationLookup: false,
+    includeDestinationLookup: true,
   });
   const activeEsims = myEsimsRows.filter((item) => item.status === "active" && item.isInstalled);
-  return activeEsims.length > 0 ? normalizeActiveEsim(activeEsims[0]) : null;
+  if (activeEsims.length === 0) {
+    return null;
+  }
+  activeEsims.sort((a, b) => {
+    const timeA = new Date(a.activatedDate || "").getTime() || 0;
+    const timeB = new Date(b.activatedDate || "").getTime() || 0;
+    return timeB - timeA;
+  });
+  return normalizeActiveEsim(activeEsims[0]);
 }
 
 function readImmediateHomeActiveEsimFromSnapshot(): HomeActiveEsim | null {
@@ -261,16 +269,21 @@ function readImmediateHomeActiveEsimFromSnapshot(): HomeActiveEsim | null {
     }
     const parsed = JSON.parse(raw);
     const rows = Array.isArray(parsed) ? parsed : [];
-    const active = rows.find((item: any) =>
+    const activeEsims = rows.filter((item: any) =>
       item &&
       typeof item === "object" &&
       String(item.status || "").toLowerCase() === "active" &&
-      Boolean(item.isInstalled),
+      Boolean(item.isInstalled)
     );
-    if (!active) {
+    if (activeEsims.length === 0) {
       return null;
     }
-    return normalizeActiveEsim(active as MyEsimItem);
+    activeEsims.sort((a: any, b: any) => {
+      const timeA = new Date(a.activatedDate || "").getTime() || 0;
+      const timeB = new Date(b.activatedDate || "").getTime() || 0;
+      return timeB - timeA;
+    });
+    return normalizeActiveEsim(activeEsims[0] as MyEsimItem);
   } catch {
     return null;
   }
