@@ -1,7 +1,10 @@
 export {
   getAllDestinations,
   getCountryPlans,
-  getCurrencySettings,
   getPopularDestinations,
   getRegionPlans,
+} from "./esimaccesswiring";
+
+export {
+  getCurrencySettings,
 } from "./esim-app-service";

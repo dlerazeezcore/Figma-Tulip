@@ -10,7 +10,7 @@ import {
   purchaseWithFIB,
   purchaseWithLoyalty,
   saveMyEsimShadowFromPurchaseResult,
-} from "./orders-service";
+} from "./esimaccesswiring";
 import { convertUsdToIqd } from "../utils/currency";
 import { isNativeApp, openNativeBrowser } from "../utils/native-payment";
 

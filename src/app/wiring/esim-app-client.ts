@@ -104,6 +104,7 @@ function flattenLocations(rows: any[], bucket: any[] = []): any[] {
 }
 
 function mapProfileStatus(row: any): string {
+  const customFields = mergeProfileCustomFields(toObjectRecord(row));
   const raw = String(
     row?.status ||
       row?.app_status ||
@@ -124,7 +125,14 @@ function mapProfileStatus(row: any): string {
     return "expired";
   }
   if (raw === "active") {
-    return "active";
+    const installed = resolveInstalledFromProfile(toObjectRecord(row), customFields);
+    const activatedAt = toString(
+      row?.activatedAt ||
+        row?.activated_at ||
+        customFields?.activatedAt ||
+        customFields?.activated_at,
+    );
+    return installed && Boolean(activatedAt) ? "active" : "inactive";
   }
   if (
     raw === "pending" ||
@@ -161,6 +169,7 @@ export interface EsimProfile {
   expiresAt: string;
   supportTopUpType: number;
   activationCode: string;
+  qrCodeUrl: string;
   installUrl: string;
   customFields: AnyRecord;
   orderReference: string;
@@ -364,7 +373,7 @@ function computeValidityDays(row: any): number {
   ]);
 }
 
-function computeDaysLeft(row: any, _validityDays: number): number {
+function computeDaysLeft(row: any, validityDays: number): number {
   const explicitCandidate = pickFirstNonNegativeNumber([
     row?.daysLeft,
     row?.days_left,
@@ -378,6 +387,34 @@ function computeDaysLeft(row: any, _validityDays: number): number {
   if (explicitCandidate !== null) {
     return Math.max(0, Math.floor(explicitCandidate));
   }
+
+  const expiryMs = parseDateToMs(
+    row?.bundleExpiresAt ||
+      row?.bundle_expires_at ||
+      row?.custom_fields?.bundleExpiresAt ||
+      row?.custom_fields?.bundle_expires_at ||
+      row?.customFields?.bundleExpiresAt ||
+      row?.customFields?.bundle_expires_at ||
+      "",
+  );
+  if (Number.isFinite(expiryMs)) {
+    return Math.max(0, Math.ceil((expiryMs - Date.now()) / (24 * 60 * 60 * 1000)));
+  }
+
+  const activatedMs = parseDateToMs(
+    row?.activatedAt ||
+      row?.activated_at ||
+      row?.custom_fields?.activatedAt ||
+      row?.custom_fields?.activated_at ||
+      row?.customFields?.activatedAt ||
+      row?.customFields?.activated_at ||
+      "",
+  );
+  if (Number.isFinite(activatedMs) && validityDays > 0) {
+    const expiresMs = activatedMs + validityDays * 24 * 60 * 60 * 1000;
+    return Math.max(0, Math.ceil((expiresMs - Date.now()) / (24 * 60 * 60 * 1000)));
+  }
+
   return -1;
 }
 
@@ -431,6 +468,24 @@ function toNumber(value: unknown, fallback = 0): number {
 
 function toString(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function parseDateToMs(value: unknown): number {
+  const text = toString(value);
+  if (!text) {
+    return Number.NaN;
+  }
+  if (/^\d{13}$/.test(text)) {
+    const parsed = Number(text);
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
+  }
+  if (/^\d{10}$/.test(text)) {
+    const parsed = Number(text) * 1000;
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
+  }
+  const normalized = text.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
 function toUpper(value: unknown): string {
@@ -2412,6 +2467,45 @@ export function getRegionPlans(regionCode: string): Promise<ApiResponse> {
   return getCountryPlans(regionCode);
 }
 
+export function getTopUpPackages(iccid: string): Promise<ApiResponse> {
+  return (async () => {
+    const normalizedIccid = toString(iccid);
+    if (!normalizedIccid) {
+      return { success: false, error: "ICCID is required to load top-up packages." };
+    }
+
+    const response = await requestApi("/esim-access/packages/query", {
+      method: "POST",
+      body: {
+        type: "TOPUP",
+        iccid: normalizedIccid,
+      },
+      includeAuth: true,
+    });
+    if (!response.success) {
+      return response;
+    }
+
+    const data = unwrapApiData(response);
+    const rows = pickPackageList(data);
+    return {
+      success: true,
+      data: rows.map((row: any, index: number) => ({
+        id: row?.packageCode || row?.slug || `topup-${index + 1}`,
+        packageCode: row?.packageCode || "",
+        name: row?.name || row?.packageName || row?.slug || `Top-up ${index + 1}`,
+        data: normalizeDataGb(row?.data ?? row?.dataGB ?? row?.volume ?? row?.totalVolume),
+        dataGB: normalizeDataGb(row?.data ?? row?.dataGB ?? row?.volume ?? row?.totalVolume),
+        validity: toNumber(row?.duration || row?.periodNum || row?.validity || 0),
+        price: pickFirstPositivePrice([row?.price, row?.retailPrice, row?.salePrice]),
+        durationUnit: row?.durationUnit || row?.duration_unit || "",
+        supportTopUpType: row?.supportTopUpType,
+        raw: row,
+      })),
+    } as ApiResponse;
+  })();
+}
+
 const DEFAULT_CURRENCY_SETTINGS_DATA = {
   enableIQD: false,
   exchangeRate: "1320",
@@ -2679,6 +2773,17 @@ export function getCurrencySettings(): Promise<ApiResponse> {
     return Promise.resolve(unsupported("Currency settings"));
   }
   return (async () => {
+    const errors: string[] = [];
+    const rememberError = (response: ApiResponse) => {
+      if (response.success) {
+        return;
+      }
+      const message = String(response.error || "").trim();
+      if (message) {
+        errors.push(message);
+      }
+    };
+
     const fromCurrent = await requestApi("/esim-access/exchange-rates/current");
     if (fromCurrent.success) {
       const normalized = normalizeCurrencySettingsPayload(
@@ -2688,16 +2793,18 @@ export function getCurrencySettings(): Promise<ApiResponse> {
         return toCurrencySettingsResponse(normalized);
       }
     }
+    rememberError(fromCurrent);
 
-    const response = await requestApi("/admin/exchange-rates");
-    if (response.success) {
+    const fromAdminList = await requestApi("/admin/exchange-rates");
+    if (fromAdminList.success) {
       const normalized = normalizeCurrencySettingsPayload(
-        unwrapApiData(response) ?? (response as any)?.data ?? response,
+        unwrapApiData(fromAdminList) ?? (fromAdminList as any)?.data ?? fromAdminList,
       );
       if (normalized) {
         return toCurrencySettingsResponse(normalized);
       }
     }
+    rememberError(fromAdminList);
 
     // Last attempt for deployments exposing a dedicated "current" admin endpoint.
     const adminCurrent = await requestApi("/admin/exchange-rates/current");
@@ -2709,9 +2816,18 @@ export function getCurrencySettings(): Promise<ApiResponse> {
         return toCurrencySettingsResponse(normalized);
       }
     }
+    rememberError(adminCurrent);
 
-    // Keep silent default fallback for backward compatibility, but only after all known sources were attempted.
-    return toCurrencySettingsResponse();
+    return {
+      success: false,
+      statusCode:
+        (adminCurrent as any)?.statusCode ??
+        (fromAdminList as any)?.statusCode ??
+        (fromCurrent as any)?.statusCode,
+      error:
+        errors.find(Boolean) ||
+        "Unable to load currency settings from eSIM access endpoints.",
+    };
   })();
 }
 
@@ -3632,15 +3748,21 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
           customFields?.activationCode ||
           customFields?.activation_code ||
           "",
+        qrCodeUrl:
+          row?.qr_code_url ||
+          row?.qrCodeUrl ||
+          customFields?.qrCodeUrl ||
+          customFields?.qr_code_url ||
+          "",
         installUrl:
           row?.install_url ||
           row?.installUrl ||
-          row?.qr_code_url ||
-          row?.qrCodeUrl ||
+          row?.shortUrl ||
+          row?.short_url ||
           customFields?.installUrl ||
           customFields?.install_url ||
-          customFields?.qrCodeUrl ||
-          customFields?.qr_code_url ||
+          customFields?.shortUrl ||
+          customFields?.short_url ||
           "",
         iccid: row?.iccid || "",
         esimTranNo,
@@ -3666,8 +3788,10 @@ export function getMyEsims(userId?: string): Promise<ApiResponse> {
   })();
 }
 
-export function activateEsim(esimId: string, payload: { userId?: string; iccid?: string; esimTranNo?: string }): Promise<ApiResponse> {
-  void esimId;
+export function activateEsim(
+  esimId: string,
+  payload: { userId?: string; iccid?: string; esimTranNo?: string; providerOrderNo?: string; id?: string },
+): Promise<ApiResponse> {
   return (async () => {
     const authError = requireBearerForProtectedRoute();
     if (authError) {
@@ -3676,37 +3800,19 @@ export function activateEsim(esimId: string, payload: { userId?: string; iccid?:
 
     const iccid = String(payload?.iccid || "").trim();
     const esimTranNo = String(payload?.esimTranNo || "").trim();
-    if (!iccid && !esimTranNo) {
-      return { success: false, error: "ICCID or eSIM transaction number is required to activate this eSIM." };
-    }
-
-    const installBody: AnyRecord = {
+    const providerOrderNo = String(payload?.providerOrderNo || "").trim();
+    const id = String(payload?.id || esimId || "").trim();
+    const activateBody: AnyRecord = {
       ...(iccid ? { iccid } : {}),
       ...(esimTranNo ? { esimTranNo } : {}),
+      ...(providerOrderNo ? { providerOrderNo } : {}),
+      ...(id ? { id } : {}),
+      platformCode: "tulip_mobile_app",
+      note: "User activated eSIM from mobile app",
     };
-    if (payload?.userId) {
-      installBody.userId = String(payload.userId);
-    }
 
-    const installResult = await requestApi("/esim-access/profiles/install/my", {
-      method: "POST",
-      body: installBody,
-      includeAuth: true,
-    });
-    const installError = String(installResult.error || "").toLowerCase();
-    const installIsNonFatal =
-      installError.includes("already installed") ||
-      installError.includes("already active") ||
-      installError.includes("already activated");
-    if (!installResult.success && !installIsNonFatal) {
-      return installResult;
-    }
-
-    const activateBody: AnyRecord = {
-      iccid,
-    };
-    if (payload?.userId) {
-      activateBody.userId = String(payload.userId);
+    if (!activateBody.iccid && !activateBody.esimTranNo && !activateBody.providerOrderNo && !activateBody.id) {
+      return { success: false, error: "An eSIM identifier is required to activate this eSIM." };
     }
 
     const activateResult = await requestApi("/esim-access/profiles/activate/my", {
@@ -3725,7 +3831,7 @@ export function activateEsim(esimId: string, payload: { userId?: string; iccid?:
     if (activateResult.success) {
       return activateResult;
     }
-    return installResult.success ? installResult : { success: true, data: { iccid, status: "active" } };
+    return { success: true, data: { iccid, esimTranNo, providerOrderNo, id, status: "active" } };
   })();
 }
 

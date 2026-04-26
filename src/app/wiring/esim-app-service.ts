@@ -20,6 +20,7 @@ const HOME_POPULAR_CODES_CACHE_KEY = "home.popular.codes.v1";
 const POPULAR_DESTINATIONS_CACHE_KEY = "catalog.popular-destinations";
 const ALL_DESTINATIONS_CACHE_KEY = "catalog.all-destinations";
 const CURRENCY_SETTINGS_CACHE_KEY = "settings.currency";
+const CURRENCY_SETTINGS_SNAPSHOT_KEY = "settings.currency.snapshot.v1";
 const WHITELIST_SETTINGS_CACHE_KEY = "settings.whitelist";
 const SUPER_ADMINS_CACHE_KEY = "admin.super-admins";
 const PENDING_ORDER_STORAGE_KEY = "pendingOrderData";
@@ -1328,13 +1329,67 @@ export async function getMyEsims(): Promise<ApiResponse<any[]>> {
   return { success: true, data: Array.isArray(response.data) ? response.data : [] };
 }
 
-export async function activateEsim(esimId: string, iccid?: string, esimTranNo?: string): Promise<ApiResponse<any>> {
+export async function activateEsim(
+  esimId: string,
+  identifiers: { iccid?: string; esimTranNo?: string; providerOrderNo?: string; id?: string } = {},
+): Promise<ApiResponse<any>> {
   const authError = requireUserId();
   if (authError) {
     return authError;
   }
 
-  return client.activateEsim(esimId, { userId: getStoredUserId(), iccid, esimTranNo });
+  return client.activateEsim(esimId, { userId: getStoredUserId(), ...identifiers });
+}
+
+function normalizeCurrencySettingsRecord(data: any): {
+  enableIQD: boolean;
+  exchangeRate: string;
+  markupPercent: string;
+} {
+  return {
+    enableIQD: toBoolean(data?.enableIQD ?? data?.enable_iqd, false),
+    exchangeRate: String(toNumber(data?.exchangeRate ?? data?.exchange_rate ?? data?.rate, 1320)),
+    markupPercent: String(toNumber(data?.markupPercent ?? data?.markup_percent ?? data?.markup, 0)),
+  };
+}
+
+function readCurrencySettingsSnapshot(): {
+  enableIQD: boolean;
+  exchangeRate: string;
+  markupPercent: string;
+} | null {
+  try {
+    const raw = String(localStorage.getItem(CURRENCY_SETTINGS_SNAPSHOT_KEY) || "").trim();
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    return normalizeCurrencySettingsRecord(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function writeCurrencySettingsSnapshot(data: {
+  enableIQD: boolean;
+  exchangeRate: string;
+  markupPercent: string;
+}): void {
+  try {
+    localStorage.setItem(CURRENCY_SETTINGS_SNAPSHOT_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function dispatchCurrencyUpdatedEvent(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent("tulip:currency-updated"));
 }
 
 export async function topUpEsim(
@@ -1432,29 +1487,28 @@ export async function clearAdminPopularDestinations(): Promise<ApiResponse<any>>
 }
 
 export async function getCurrencySettings(): Promise<ApiResponse<any>> {
-  return getCachedResource(CURRENCY_SETTINGS_CACHE_KEY, SETTINGS_CACHE_TTL_MS, async () => {
-    const response = await client.getCurrencySettings();
-    if (!response.success) {
-      return {
-        success: true,
-        data: {
-          enableIQD: false,
-          exchangeRate: "1320",
-          markupPercent: "0",
-        },
-      };
-    }
-
-    const data = extractApiData<any>(response) || {};
+  const response = await client.getCurrencySettings();
+  if (response.success) {
+    const normalized = normalizeCurrencySettingsRecord(extractApiData<any>(response) || {});
+    writeCurrencySettingsSnapshot(normalized);
     return {
       success: true,
-      data: {
-        enableIQD: toBoolean(data?.enableIQD ?? data?.enable_iqd, false),
-        exchangeRate: String(toNumber(data?.exchangeRate ?? data?.exchange_rate ?? data?.rate, 1320)),
-        markupPercent: String(toNumber(data?.markupPercent ?? data?.markup_percent ?? data?.markup, 0)),
-      },
+      data: normalized,
     };
-  });
+  }
+
+  const snapshot = readCurrencySettingsSnapshot();
+  if (snapshot) {
+    return {
+      success: true,
+      data: snapshot,
+    };
+  }
+
+  return {
+    success: true,
+    data: normalizeCurrencySettingsRecord({}),
+  };
 }
 
 export async function updateCurrencySettings(settings: AnyRecord): Promise<ApiResponse<any>> {
@@ -1469,7 +1523,9 @@ export async function updateCurrencySettings(settings: AnyRecord): Promise<ApiRe
   }
 
   invalidateCachedResource(CURRENCY_SETTINGS_CACHE_KEY);
-  return getCurrencySettings();
+  const refreshed = await getCurrencySettings();
+  dispatchCurrencyUpdatedEvent();
+  return refreshed;
 }
 
 export async function getWhitelistSettings(): Promise<ApiResponse<any>> {

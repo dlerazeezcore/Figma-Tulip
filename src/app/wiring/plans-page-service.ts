@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { isAuthenticated as hasAuthenticatedSession, login, signup } from "./account-service";
-import { getAllDestinations, getCountryPlans, getCurrencySettings, getRegionPlans, getPopularDestinations } from "./catalog-service";
+import { getCurrencySettings } from "./catalog-service";
+import { addAuthSessionChangeListener } from "./session";
+import {
+  getAllDestinations,
+  getCountryPlans,
+  getPopularDestinations,
+  getRegionPlans,
+} from "./esimaccesswiring";
 import type { ApiResponse } from "./types";
 import { resolveCountryName, shouldExpandIsoName } from "./country-names";
 import { formatDataAllowance } from "../utils/data-allowance";
@@ -84,7 +91,7 @@ const FALLBACK_REGIONS: PlansDestination[] = [
   { id: "r-2", name: "Global (120+ areas)", flag: "🌍", code: "region-global-120-areas", type: "regional", priceFrom: 4.45, plansCount: 0 },
 ];
 
-const PLANS_CONTEXT_CACHE_KEY = "plans.page.context.v2";
+const PLANS_CONTEXT_CACHE_KEY = "plans.page.context.v3";
 const DESTINATION_PREVIEW_CACHE_TTL_MS = 5 * 60 * 1000;
 const destinationPreviewCache = new Map<string, { value: { priceFrom: number; plansCount: number }; expiresAt: number }>();
 const LOCAL_COUNTRY_CODES = [
@@ -109,6 +116,24 @@ const LOCAL_COUNTRY_CODES = [
 function toNumber(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeCatalogUsdPrice(value: unknown, currencyCode?: unknown): number {
+  const parsed = toNumber(value, 0);
+  if (parsed <= 0) {
+    return 0;
+  }
+  if (!Number.isInteger(parsed)) {
+    return parsed;
+  }
+
+  // eSIM Access package prices are returned in 1/10000 USD units (for example 3000 => 0.3 USD).
+  const currency = String(currencyCode || "").trim().toUpperCase();
+  if ((currency === "USD" || !currency) && parsed >= 1000) {
+    return parsed / 10000;
+  }
+
+  return parsed;
 }
 
 function flagFromIso(code: string): string {
@@ -157,7 +182,10 @@ function normalizeDestinationRow(row: any): PlansDestination {
     flag: resolveDisplayFlag(row?.flag || row?.emoji, normalizedCode),
     code,
     type,
-    priceFrom: toNumber(row?.priceFrom ?? row?.price_from ?? row?.min_price ?? row?.price, 0),
+    priceFrom: normalizeCatalogUsdPrice(
+      row?.priceFrom ?? row?.price_from ?? row?.min_price ?? row?.price,
+      row?.currencyCode ?? row?.currency_code,
+    ),
     plansCount: toNumber(row?.plansCount ?? row?.plans, 0),
   };
 }
@@ -225,7 +253,7 @@ function normalizeBundleRow(row: any, index: number): PlansBundle {
     id,
     data,
     validity: toNumber(row?.validity ?? row?.durationDays ?? row?.duration_days ?? row?.days, 0),
-    price: toNumber(row?.price ?? row?.bundle_price, 0),
+    price: normalizeCatalogUsdPrice(row?.price ?? row?.bundle_price, row?.currencyCode ?? row?.currency_code),
     unlimited,
     isPerDay,
     dataLabel: formatDataAllowance(data, { unlimited, perDay: isPerDay }),
@@ -654,11 +682,16 @@ export function usePlansPageModel(): PlansPageModel {
   const [destinationPreviewByCode, setDestinationPreviewByCode] = useState<Record<string, { priceFrom: number; plansCount: number }>>({});
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadContext = async () => {
       if (!hasImmediateDestinations) {
         setIsLoadingDestinations(true);
       }
       const context = await loadPlansPageContext();
+      if (cancelled) {
+        return;
+      }
       setCountries(context.countries);
       setRegions(context.regions);
       setExchangeRate(context.exchangeRate);
@@ -666,7 +699,21 @@ export function usePlansPageModel(): PlansPageModel {
       setIsLoadingDestinations(false);
     };
 
+    const handleCurrencyUpdated = () => {
+      void loadContext();
+    };
+
     void loadContext();
+    window.addEventListener("tulip:currency-updated", handleCurrencyUpdated);
+    const removeAuthListener = addAuthSessionChangeListener(() => {
+      void loadContext();
+    });
+
+    return () => {
+      cancelled = true;
+      removeAuthListener();
+      window.removeEventListener("tulip:currency-updated", handleCurrencyUpdated);
+    };
   }, [hasImmediateDestinations]);
 
   useEffect(() => {

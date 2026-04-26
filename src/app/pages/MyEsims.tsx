@@ -15,7 +15,7 @@ import { useNavigate } from "react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { buildQrImageUrl, type MyEsimItem, useMyEsimsPageModel } from "../wiring/my-esims-page-service";
+import { buildQrImageUrl, type MyEsimItem, useMyEsimsPageModel } from "../wiring/esimaccesswiring";
 
 function formatNumber(value: number): string {
   const rounded = Math.round(Math.max(0, Number(value || 0)) * 100) / 100;
@@ -35,6 +35,15 @@ function formatDataLabelFromMb(valueMb: number): string {
   return `${formatNumber(mb)}MB`;
 }
 
+function formatGbFromMb(valueMb: number): string {
+  const gb = Math.max(0, Number(valueMb || 0)) / 1024;
+  return formatNumber(gb);
+}
+
+function resolveEsimQrPayload(esim: Pick<MyEsimItem, "qrPayload" | "qrCodeUrl" | "activationCode">): string {
+  return String(esim.qrPayload || esim.qrCodeUrl || esim.activationCode || "").trim();
+}
+
 export function MyEsims() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -51,10 +60,13 @@ export function MyEsims() {
     refresh,
     handleActivate,
     handleTopUp,
+    resolveQrEsim,
+    handleQrInstalled,
     selectedQrEsim,
     setSelectedQrEsim,
   } = useMyEsimsPageModel();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [openingQrEsimId, setOpeningQrEsimId] = useState("");
   const [startY, setStartY] = useState(0);
   const [pullDistance, setPullDistance] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,18 +105,24 @@ export function MyEsims() {
     setStartY(0);
   };
 
-  const handleOpenQr = (esim: MyEsimItem) => {
-    if (!esim.canShowQr || !esim.qrPayload) {
-      toast.error(t("QR is not available for this eSIM."));
-      return;
-    }
+  const handleOpenQr = async (esim: MyEsimItem) => {
+    setOpeningQrEsimId(esim.id);
+    try {
+      const latestEsim = await resolveQrEsim(esim);
+      const qrPayload = resolveEsimQrPayload(latestEsim);
+      const qrUrl = buildQrImageUrl(qrPayload);
 
-    const qrUrl = buildQrImageUrl(esim.qrPayload);
-    if (!qrUrl) {
+      if (!latestEsim.canShowQr || !qrUrl) {
+        toast.error(t("QR is not available for this eSIM."));
+        return;
+      }
+
+      setSelectedQrEsim({ ...latestEsim, qrPayload });
+    } catch {
       toast.error(t("QR is not available for this eSIM."));
-      return;
+    } finally {
+      setOpeningQrEsimId("");
     }
-    setSelectedQrEsim(esim);
   };
 
   const getStatusBadge = (status: string) => {
@@ -153,7 +171,7 @@ export function MyEsims() {
     return t("Activated");
   };
 
-  const selectedQrUrl = selectedQrEsim ? buildQrImageUrl(selectedQrEsim.qrPayload) : "";
+  const selectedQrUrl = selectedQrEsim ? buildQrImageUrl(resolveEsimQrPayload(selectedQrEsim)) : "";
 
   return (
     <div
@@ -314,6 +332,9 @@ export function MyEsims() {
                       <p className="text-xs text-gray-600 dark:text-muted-foreground text-start">
                         {t('data_used_of_remaining', { used: formatDataLabelFromMb(esim.dataUsed), remaining: formatDataLabelFromMb(esim.dataRemaining) })}
                       </p>
+                      <p className="text-[11px] text-primary text-start mt-1 font-medium">
+                        {formatGbFromMb(esim.dataRemaining)} GB left
+                      </p>
                     </div>
                   )}
 
@@ -328,11 +349,15 @@ export function MyEsims() {
                     <Button
                       variant="outline"
                       className="h-10 text-xs rounded-xl border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent"
-                      disabled={!esim.canShowQr}
-                      onClick={() => handleOpenQr(esim)}
+                      disabled={!esim.canShowQr || openingQrEsimId === esim.id}
+                      onClick={() => void handleOpenQr(esim)}
                     >
-                      <QrCode className="w-4 h-4 me-1.5" />
-                      {t("View QR")}
+                      {openingQrEsimId === esim.id ? (
+                        <Loader2 className="w-4 h-4 me-1.5 animate-spin" />
+                      ) : (
+                        <QrCode className="w-4 h-4 me-1.5" />
+                      )}
+                      {openingQrEsimId === esim.id ? t("Loading...") : t("View QR")}
                     </Button>
                     <Button
                       className="h-10 text-xs rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary-hover hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-400"
@@ -353,12 +378,24 @@ export function MyEsims() {
           })
         )}
       </div>
-      <Dialog open={Boolean(selectedQrEsim)} onOpenChange={(open) => (!open ? setSelectedQrEsim(null) : undefined)}>
+      <Dialog
+        open={Boolean(selectedQrEsim)}
+        onOpenChange={(open) => {
+          if (open) {
+            return;
+          }
+          const closingEsim = selectedQrEsim;
+          setSelectedQrEsim(null);
+          if (closingEsim && closingEsim.canActivate) {
+            void handleQrInstalled(closingEsim);
+          }
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader className="text-start">
             <DialogTitle>{t("eSIM QR")}</DialogTitle>
             <DialogDescription>
-              {t("Scan this QR code from your device eSIM settings to install.")}
+              {t("Scan this QR code from your device eSIM settings to install. Closing this dialog will auto-sync activation.")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center rounded-xl bg-white p-4">

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { getCurrencySettings, getPopularDestinations } from "./catalog-service";
+import { getCurrencySettings } from "./catalog-service";
 import { resolveCountryName } from "./country-names";
 import { useHomeTutorialModel, type HomeTutorialModel } from "./home-tutorial-service";
-import { loadMyEsimsPageContent, type MyEsimItem } from "./my-esims-page-service";
+import { getPopularDestinations, loadMyEsimsPageContent, type MyEsimItem } from "./esimaccesswiring";
 import { addAuthSessionChangeListener, getUserId, getUserName, isAuthenticated } from "./session";
 
 export interface HomeDestination {
@@ -314,13 +314,20 @@ export function useHomePageModel(): HomePageModel {
     void loadPopular();
 
     const handlePopularUpdated = () => void loadPopular();
+    const handleCurrencyUpdated = () => void loadPopular();
     const handleVisibility = () => {
       if (document.visibilityState === "visible") void loadPopular();
     };
+    const removeAuthListener = addAuthSessionChangeListener(() => {
+      void loadPopular();
+    });
     window.addEventListener("tulip:popular-updated", handlePopularUpdated);
+    window.addEventListener("tulip:currency-updated", handleCurrencyUpdated);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
+      removeAuthListener();
       window.removeEventListener("tulip:popular-updated", handlePopularUpdated);
+      window.removeEventListener("tulip:currency-updated", handleCurrencyUpdated);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);

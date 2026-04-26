@@ -1,4 +1,4 @@
-import type { MyEsimItem } from "../wiring/my-esims-page-service";
+import type { MyEsimItem } from "../wiring/esimaccesswiring";
 
 export function formatDataAmountGb(value: number): string {
   const rounded = Math.round(Math.max(0, value) * 100) / 100;

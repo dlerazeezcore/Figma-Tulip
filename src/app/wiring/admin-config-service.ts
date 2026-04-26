@@ -2,12 +2,16 @@ import { isBackendCapabilityEnabled } from "./config";
 import { requestApi } from "./http";
 
 export {
+  clearAdminPopularDestinations,
+  getAdminPopularDestinations,
+  setAdminPopularDestinations,
+} from "./esimaccesswiring";
+
+export {
   addSuperAdmin,
   blockUserAccount,
-  clearAdminPopularDestinations,
   deleteUserAccount,
   editUserAccount,
-  getAdminPopularDestinations,
   getCurrencySettings,
   getPushNotificationSummary,
   getSuperAdmins,
@@ -17,7 +21,6 @@ export {
   removeSuperAdmin,
   sendAppUpdatePushNotification,
   sendPushNotification,
-  setAdminPopularDestinations,
   updateCurrencySettings,
   updateWhitelistSettings,
 } from "./esim-app-service";
