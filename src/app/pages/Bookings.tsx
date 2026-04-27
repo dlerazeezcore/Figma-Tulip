@@ -82,7 +82,7 @@ export function Bookings() {
         <div className="space-y-3">
           {services.map((svc) => {
             const Icon = svc.icon;
-            const isSoon = svc.key === "flight";
+            const isSoon = svc.key === "flight" || svc.key === "hotel";
             
             return (
               <button
@@ -118,7 +118,7 @@ export function Bookings() {
                     </div>
                     <div className="flex-shrink-0">
                       {isSoon ? (
-                        <Plane className="w-5 h-5 text-gray-300 opacity-20" />
+                        <Icon className="w-5 h-5 text-gray-300 opacity-20" />
                       ) : (
                         isRTL ? (
                           <ChevronLeft className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 transition-colors" />
