@@ -3,12 +3,12 @@ import { RouterProvider } from "react-router";
 import { Toaster } from "./components/ui/sonner";
 import { SplashScreen as NativeSplashScreen } from "@capacitor/splash-screen";
 import { useTranslation } from "react-i18next";
-import { InitSuperAdmin } from "./components/InitSuperAdmin";
 import { SplashScreen } from "./components/SplashScreen";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { LanguageSelectionModal } from "./components/LanguageSelectionModal";
 import { useUserPreferences } from "./store/user-preferences";
 import { router } from "./routes";
+import { initializePostLoginBootstrapListener } from "./wiring/post-login-bootstrap-service";
 import { addAuthSessionChangeListener } from "./wiring/session";
 import { addAppUrlOpenListener, closeNativeBrowser, getRouteFromAppUrl, isNativeApp } from "./utils/native-payment";
 
@@ -53,6 +53,10 @@ export default function App() {
       meta.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
       document.head.appendChild(meta);
     }
+  }, []);
+
+  useEffect(() => {
+    return initializePostLoginBootstrapListener();
   }, []);
 
   useEffect(() => {
@@ -183,7 +187,6 @@ export default function App() {
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <LanguageSelectionModal />
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-      <InitSuperAdmin />
       <RouterProvider router={router} />
       <Toaster position="top-center" richColors offset={isNativeApp() ? 52 : 16} />
     </ThemeProvider>

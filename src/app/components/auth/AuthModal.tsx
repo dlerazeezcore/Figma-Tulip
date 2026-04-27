@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 import { CountryFlag } from "../ui/country-flag";
@@ -14,6 +15,8 @@ import {
   signupWithOtp,
   type OtpChannel,
 } from "../../wiring/account-service";
+import { markLoginSubmit, markLoginTokenReceived } from "../../wiring/perf-telemetry";
+import { triggerPostLoginBootstrap } from "../../wiring/post-login-bootstrap-service";
 
 interface CountryCode {
   code: string;
@@ -27,6 +30,7 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   initialMode?: "login" | "signup";
+  redirectToHomeOnSuccess?: boolean;
 }
 
 type AuthMethod = "password" | "sms" | "whatsapp";
@@ -109,8 +113,15 @@ function resolveForgotPasswordError(statusCode?: number, detail?: string): strin
   return withServerDetail("Unable to reset password.", detail);
 }
 
-export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }: AuthModalProps) {
+export function AuthModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialMode = "signup",
+  redirectToHomeOnSuccess = true,
+}: AuthModalProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot">(initialMode);
   const [authMethod, setAuthMethod] = useState<AuthMethod>("password");
   const [currentStep, setCurrentStep] = useState<AuthStep>("method");
@@ -198,6 +209,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
       window.clearInterval(timer);
     };
   }, [otpCooldownSeconds]);
+
+  const handleSuccessfulAuth = () => {
+    markLoginTokenReceived();
+    onClose();
+    onSuccess?.();
+    triggerPostLoginBootstrap("auth-modal-success");
+    if (redirectToHomeOnSuccess) {
+      navigate("/", { replace: true });
+    }
+  };
 
   const handleMethodSelect = (method: AuthMethod) => {
     setAuthMethod(method);
@@ -290,6 +311,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
     }
 
     try {
+      markLoginSubmit();
       setIsSubmitting(true);
       const response = await loginWithOtp(
         fullPhoneNumber,
@@ -302,8 +324,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
       }
 
       toast.success(t("Logged in successfully"));
-      onClose();
-      onSuccess?.();
+      handleSuccessfulAuth();
     } catch (error) {
       console.error("OTP login error:", error);
       toast.error(t("Unable to log in right now."));
@@ -351,6 +372,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
       }
 
       try {
+        markLoginSubmit();
         setIsSubmitting(true);
         const response =
           authMethod === "password"
@@ -368,8 +390,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
         }
 
         toast.success("Account created successfully");
-        onClose();
-        onSuccess?.();
+        handleSuccessfulAuth();
       } catch (error) {
         console.error("Signup error:", error);
         toast.error("Unable to create account right now.");
@@ -395,6 +416,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
       }
 
       try {
+        markLoginSubmit();
         setIsSubmitting(true);
         const response =
           authMethod === "password"
@@ -411,8 +433,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = "signup" }
         }
 
         toast.success("Logged in successfully");
-        onClose();
-        onSuccess?.();
+        handleSuccessfulAuth();
       } catch (error) {
         console.error("Login error:", error);
         toast.error("Unable to log in right now.");

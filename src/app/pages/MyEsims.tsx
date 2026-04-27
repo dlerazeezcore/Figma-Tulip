@@ -61,7 +61,6 @@ export function MyEsims() {
     handleActivate,
     handleTopUp,
     resolveQrEsim,
-    handleQrInstalled,
     selectedQrEsim,
     setSelectedQrEsim,
   } = useMyEsimsPageModel();
@@ -261,6 +260,9 @@ export function MyEsims() {
             const showTopUp = esim.canTopUp;
             const isBusy = busyEsimId === esim.id;
             const activateLabel = !esim.canActivate ? "Activated" : "Activate";
+            const canOpenQr =
+              esim.status !== "expired" &&
+              (esim.canShowQr || Boolean(esim.orderReference || esim.transactionId || esim.iccid || esim.id));
 
             return (
               <Card
@@ -349,7 +351,7 @@ export function MyEsims() {
                     <Button
                       variant="outline"
                       className="h-10 text-xs rounded-xl border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-accent"
-                      disabled={!esim.canShowQr || openingQrEsimId === esim.id}
+                      disabled={!canOpenQr || openingQrEsimId === esim.id}
                       onClick={() => void handleOpenQr(esim)}
                     >
                       {openingQrEsimId === esim.id ? (
@@ -384,18 +386,14 @@ export function MyEsims() {
           if (open) {
             return;
           }
-          const closingEsim = selectedQrEsim;
           setSelectedQrEsim(null);
-          if (closingEsim && closingEsim.canActivate) {
-            void handleQrInstalled(closingEsim);
-          }
         }}
       >
         <DialogContent className="max-w-sm">
           <DialogHeader className="text-start">
             <DialogTitle>{t("eSIM QR")}</DialogTitle>
             <DialogDescription>
-              {t("Scan this QR code from your device eSIM settings to install. Closing this dialog will auto-sync activation.")}
+              {t("Scan this QR code from your device eSIM settings to install.")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center rounded-xl bg-white p-4">

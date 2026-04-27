@@ -266,6 +266,7 @@ export function Plans() {
           initialMode="signup"
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
+          redirectToHomeOnSuccess={false}
         />
 
         {/* Included Countries Bottom Sheet */}
@@ -413,6 +414,7 @@ export function Plans() {
         initialMode="signup"
         onClose={() => setShowAuthModal(false)}
         onSuccess={handleAuthSuccess}
+        redirectToHomeOnSuccess={false}
       />
     </div>
   );

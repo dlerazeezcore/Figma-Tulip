@@ -26,7 +26,7 @@ const SUPER_ADMINS_CACHE_KEY = "admin.super-admins";
 const PENDING_ORDER_STORAGE_KEY = "pendingOrderData";
 const MY_ESIMS_SHADOW_ROWS_KEY_PREFIX = "esim.myEsims.shadowRows.v1.";
 const MY_ESIMS_SHADOW_TTL_MS = 10 * 24 * 60 * 60 * 1000;
-const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
+const CATALOG_CACHE_TTL_MS = 60 * 1000;
 const SETTINGS_CACHE_TTL_MS = 60 * 1000;
 
 function toNumber(value: any, fallback = 0): number {
@@ -1487,28 +1487,30 @@ export async function clearAdminPopularDestinations(): Promise<ApiResponse<any>>
 }
 
 export async function getCurrencySettings(): Promise<ApiResponse<any>> {
-  const response = await client.getCurrencySettings();
-  if (response.success) {
-    const normalized = normalizeCurrencySettingsRecord(extractApiData<any>(response) || {});
-    writeCurrencySettingsSnapshot(normalized);
+  return getCachedResource(CURRENCY_SETTINGS_CACHE_KEY, SETTINGS_CACHE_TTL_MS, async () => {
+    const response = await client.getCurrencySettings();
+    if (response.success) {
+      const normalized = normalizeCurrencySettingsRecord(extractApiData<any>(response) || {});
+      writeCurrencySettingsSnapshot(normalized);
+      return {
+        success: true,
+        data: normalized,
+      };
+    }
+
+    const snapshot = readCurrencySettingsSnapshot();
+    if (snapshot) {
+      return {
+        success: true,
+        data: snapshot,
+      };
+    }
+
     return {
       success: true,
-      data: normalized,
+      data: normalizeCurrencySettingsRecord({}),
     };
-  }
-
-  const snapshot = readCurrencySettingsSnapshot();
-  if (snapshot) {
-    return {
-      success: true,
-      data: snapshot,
-    };
-  }
-
-  return {
-    success: true,
-    data: normalizeCurrencySettingsRecord({}),
-  };
+  });
 }
 
 export async function updateCurrencySettings(settings: AnyRecord): Promise<ApiResponse<any>> {

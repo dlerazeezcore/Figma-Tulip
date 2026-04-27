@@ -48,6 +48,17 @@ interface LoadMyEsimsOptions {
   includeTopUpSupport?: boolean;
   includeOrderLifecycle?: boolean;
   includeDestinationLookup?: boolean;
+  forceUsageSync?: boolean;
+}
+
+interface RequestLoadOptions {
+  signal?: AbortSignal;
+  dedupeInFlight?: boolean;
+}
+
+interface GetMyEsimsOptions {
+  forceUsageSync?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface MyEsimsPageModel {
@@ -93,17 +104,21 @@ const ORDER_BACKFILL_TIMEOUT_MS = 2000;
 const TOPUP_LOOKUP_TIMEOUT_MS = 1500;
 const USAGE_SYNC_TIMEOUT_MS = 4500;
 const ESIMS_REFRESH_THROTTLE_MS = 25_000;
+const USAGE_SYNC_STALE_MS = 2 * 60 * 60 * 1000;
 const ACTIVATION_PENDING_TTL_MS = 30 * 60 * 1000;
 const MY_ESIMS_SHADOW_TTL_MS = 10 * 24 * 60 * 60 * 1000;
 const POPULAR_DESTINATIONS_CACHE_KEY = "catalog.popular-destinations";
 const ALL_DESTINATIONS_CACHE_KEY = "catalog.all-destinations";
 const HOME_POPULAR_CONTENT_CACHE_KEY = "home.popular.content.v1";
 const HOME_POPULAR_CODES_CACHE_KEY = "home.popular.codes.v1";
-const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
-const POPULAR_METRICS_CACHE_TTL_MS = 5 * 60 * 1000;
+const CATALOG_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+const POPULAR_METRICS_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 const PENDING_ORDER_STORAGE_KEY = "pendingOrderData";
+const DEFAULT_POPULAR_COUNTRY_CODES = ["IQ", "TR", "AE", "SA", "US", "GB", "DE", "FR"] as const;
 const topUpSupportCache = new Map<string, TopUpSupport>();
 const popularMetricsCache = new Map<string, { value: { priceFrom: number; plansCount: number }; expiresAt: number }>();
+const usageSyncLastSuccessAtByUser = new Map<string, number>();
+const usageSyncInFlightByUser = new Map<string, Promise<any[]>>();
 
 function readMyEsimsSnapshot(): MyEsimItem[] {
   try {
@@ -844,6 +859,39 @@ function normalizePopularDestination(item: any, index: number): AnyRecord {
   };
 }
 
+function readPopularMetricsFromRow(item: any): { priceFrom: number; plansCount: number } {
+  const customFields = item?.customFields || item?.custom_fields || {};
+  const priceFrom = [
+    item?.priceFrom,
+    item?.price_from,
+    item?.minPrice,
+    item?.min_price,
+    customFields?.priceFrom,
+    customFields?.price_from,
+    customFields?.minPrice,
+    customFields?.min_price,
+  ]
+    .map((value) => normalizePlanPriceUsd(value, item?.currencyCode ?? item?.currency_code ?? customFields?.currencyCode))
+    .find((value) => value > 0) || 0;
+  const plansCount = toInt(
+    item?.plansCount ??
+      item?.plans ??
+      item?.plans_count ??
+      customFields?.plansCount ??
+      customFields?.plans ??
+      customFields?.plans_count ??
+      0,
+    0,
+  );
+  return { priceFrom, plansCount };
+}
+
+function buildDefaultPopularDestinations(): AnyRecord[] {
+  return DEFAULT_POPULAR_COUNTRY_CODES.map((code, index) =>
+    normalizePopularDestination({ code, name: resolveCountryName(code), type: "country" }, index),
+  );
+}
+
 function normalizePlan(row: any, index: number): AnyRecord {
   const id = row?.packageCode || row?.id || row?.bundleName || row?.bundle_name || row?.slug || `plan-${index + 1}`;
   const data = normalizeDataGb(row?.data ?? row?.dataGB ?? row?.data_gb ?? row?.volume ?? row?.totalVolume);
@@ -925,6 +973,7 @@ async function fetchPopularLocationMetrics(code: string): Promise<{ priceFrom: n
     method: "POST",
     body: { locationCode: normalizedCode },
     includeAuth: false,
+    dedupeInFlight: true,
   });
 
   if (!response.success) {
@@ -963,6 +1012,7 @@ export async function getAllDestinations(): Promise<ApiResponse<any[]>> {
         method: "POST",
         body: {},
         includeAuth: false,
+        dedupeInFlight: true,
       });
       if (!response.success) {
         return response as ApiResponse<any[]>;
@@ -990,8 +1040,8 @@ export async function getPopularDestinations(): Promise<ApiResponse<any[]>> {
     CATALOG_CACHE_TTL_MS,
     async () => {
       const candidates = [
-        "/esim-access/featured-locations",
         "/featured-locations/public",
+        "/esim-access/featured-locations",
         "/admin/featured-locations",
       ];
 
@@ -1005,7 +1055,7 @@ export async function getPopularDestinations(): Promise<ApiResponse<any[]>> {
       }
 
       if (!featured?.success) {
-        return featured as ApiResponse<any[]>;
+        return { success: true, data: buildDefaultPopularDestinations() };
       }
 
       const data = unwrapApiData(featured) || featured;
@@ -1015,19 +1065,17 @@ export async function getPopularDestinations(): Promise<ApiResponse<any[]>> {
         const enabled = toBoolean(row?.enabled ?? true);
         return isPopular && enabled;
       });
-      const rowsWithMetrics = await Promise.all(
-        activePopularRows.map(async (row: any, index: number) => {
-          const normalized = normalizePopularDestination(row, index);
-          const code = toUpper(normalized.code);
-          const metrics = await fetchPopularLocationMetrics(code);
-          return { normalized, code, metrics };
-        }),
-      );
+      const sourceRows = activePopularRows.length > 0 ? activePopularRows : buildDefaultPopularDestinations();
 
       return {
         success: true,
-        data: rowsWithMetrics
-          .filter(({ code, metrics }) => code.length === 2 && metrics.priceFrom > 0 && metrics.plansCount > 1)
+        data: sourceRows
+          .map((row: any, index: number) => {
+            const normalized = normalizePopularDestination(row, index);
+            const metrics = readPopularMetricsFromRow(row);
+            return { normalized, code: toUpper(normalized.code), metrics };
+          })
+          .filter(({ code }) => code.length === 2)
           .map(({ normalized, metrics }) => ({
             ...normalized,
             priceFrom: metrics.priceFrom,
@@ -1147,11 +1195,16 @@ export async function clearAdminPopularDestinations(): Promise<ApiResponse<any>>
   return { success: true, data: { message: "Popular destinations cleared", cleared: activePopularRows.length } };
 }
 
-export async function getCountryPlans(countryCode: string): Promise<ApiResponse<any[]>> {
+export async function getCountryPlans(
+  countryCode: string,
+  options: RequestLoadOptions = {},
+): Promise<ApiResponse<any[]>> {
   const response = await requestApi("/esim-access/packages/query", {
     method: "POST",
     body: { locationCode: toUpper(countryCode) },
     includeAuth: false,
+    signal: options.signal,
+    dedupeInFlight: options.dedupeInFlight ?? true,
   });
   if (!response.success) {
     return response as ApiResponse<any[]>;
@@ -1160,8 +1213,11 @@ export async function getCountryPlans(countryCode: string): Promise<ApiResponse<
   return { success: true, data: rows.map(normalizePlan) };
 }
 
-export async function getRegionPlans(regionCode: string): Promise<ApiResponse<any[]>> {
-  return getCountryPlans(regionCode);
+export async function getRegionPlans(
+  regionCode: string,
+  options: RequestLoadOptions = {},
+): Promise<ApiResponse<any[]>> {
+  return getCountryPlans(regionCode, options);
 }
 
 async function resolveCurrencySettingsForCheckout(): Promise<{ exchangeRate: string; markupPercent: string }> {
@@ -1867,13 +1923,24 @@ function normalizeProfileRowForPage(row: any): AnyRecord {
   };
 }
 
-export async function getMyEsims(): Promise<ApiResponse<any[]>> {
-  const authError = requireUserId();
-  if (authError) {
-    return authError;
+async function syncMyUsageRows(options: GetMyEsimsOptions = {}): Promise<any[]> {
+  const userId = toString(getUserId());
+  if (!userId) {
+    return [];
   }
 
-  const syncedUsageRows = await (async () => {
+  const now = Date.now();
+  const lastSuccessAt = usageSyncLastSuccessAtByUser.get(userId) || 0;
+  if (!options.forceUsageSync && now - lastSuccessAt < USAGE_SYNC_STALE_MS) {
+    return [];
+  }
+
+  const inFlight = usageSyncInFlightByUser.get(userId);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const task = (async () => {
     const endpoints = ["/esim-access/usage/sync/my", "/esim-access/usage/refresh/my"];
 
     for (const endpoint of endpoints) {
@@ -1881,6 +1948,8 @@ export async function getMyEsims(): Promise<ApiResponse<any[]>> {
         requestApi(endpoint, {
           method: "POST",
           includeAuth: true,
+          signal: options.signal,
+          dedupeInFlight: true,
         }),
         new Promise<ApiResponse<any>>((resolve) => {
           setTimeout(() => resolve(toTimeoutUsageSyncResponse()), USAGE_SYNC_TIMEOUT_MS);
@@ -1888,6 +1957,7 @@ export async function getMyEsims(): Promise<ApiResponse<any[]>> {
       ]);
 
       if (response.success) {
+        usageSyncLastSuccessAtByUser.set(userId, Date.now());
         return extractProfileRowsFromPayload(response);
       }
 
@@ -1903,11 +1973,26 @@ export async function getMyEsims(): Promise<ApiResponse<any[]>> {
     }
 
     return [] as any[];
-  })();
+  })().finally(() => {
+    if (usageSyncInFlightByUser.get(userId) === task) {
+      usageSyncInFlightByUser.delete(userId);
+    }
+  });
+
+  usageSyncInFlightByUser.set(userId, task);
+  return task;
+}
+
+export async function getMyEsims(options: GetMyEsimsOptions = {}): Promise<ApiResponse<any[]>> {
+  const authError = requireUserId();
+  if (authError) {
+    return authError;
+  }
+
+  const syncedUsageRows = options.forceUsageSync ? await syncMyUsageRows(options) : [];
+  let rows: any[] = mergeRowsByIdentity([], syncedUsageRows);
 
   const queries: AnyRecord[] = [
-    { limit: 100, offset: 0, ts: Date.now() },
-    { limit: 100, offset: 0, status: "all", ts: Date.now() },
     {
       limit: 100,
       offset: 0,
@@ -1915,21 +2000,37 @@ export async function getMyEsims(): Promise<ApiResponse<any[]>> {
       includeUninstalled: true,
       includeNotInstalled: true,
       onlyInstalled: false,
-      status: "all",
-      ts: Date.now(),
     },
+    { limit: 100, offset: 0 },
   ];
-  let rows: any[] = mergeRowsByIdentity([], syncedUsageRows);
 
-  for (const query of queries) {
-    const response = await requestApi("/esim-access/profiles/my", { includeAuth: true, query });
+  for (let index = 0; index < queries.length; index += 1) {
+    const query = queries[index];
+    const response = await requestApi("/esim-access/profiles/my", {
+      includeAuth: true,
+      query,
+      signal: options.signal,
+      dedupeInFlight: true,
+    });
+
     if (!response.success) {
+      const statusCode = Number(response.statusCode || 0);
+      const errorText = toString(response.error).toLowerCase();
+      const canFallbackToNextQuery =
+        index < queries.length - 1 &&
+        (statusCode === 400 || statusCode === 422 || errorText.includes("invalid"));
+      if (canFallbackToNextQuery) {
+        continue;
+      }
+
       if (rows.length === 0) {
         return response as ApiResponse<any[]>;
       }
-      continue;
+      break;
     }
+
     rows = mergeRowsByIdentity(rows, extractProfileRowsFromPayload(response));
+    break;
   }
 
   return { success: true, data: rows.map(normalizeProfileRowForPage) };
@@ -3741,7 +3842,7 @@ export async function loadMyEsimsPageContent(options: LoadMyEsimsOptions = {}): 
   const includeDestinationLookup = options.includeDestinationLookup !== false;
 
   const [myEsimsResponse, destinationsResponse] = await Promise.all([
-    getMyEsims(),
+    getMyEsims({ forceUsageSync: options.forceUsageSync }),
     includeDestinationLookup ? getAllDestinations() : Promise.resolve<ApiResponse<any[]>>({ success: true, data: [] }),
   ]);
 
@@ -3887,11 +3988,13 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
   );
   const expiredEsims = useMemo(() => esims.filter((esim) => esim.status === "expired"), [esims]);
 
-  const loadVerifiedEsims = async (): Promise<MyEsimItem[]> => {
+  const loadVerifiedEsims = async (forceUsageSync = false): Promise<MyEsimItem[]> => {
     try {
       const verifiedRows = await loadMyEsimsPageContent({
         includeOrderLifecycle: false,
         includeTopUpSupport: false,
+        includeDestinationLookup: false,
+        forceUsageSync,
       });
       setEsims(verifiedRows);
       setLoading(false);
@@ -3913,7 +4016,7 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
     }
   };
 
-  const refreshEsims = async (showLoader = false, force = false): Promise<MyEsimItem[]> => {
+  const refreshEsims = async (showLoader = false, force = false, forceUsageSync = false): Promise<MyEsimItem[]> => {
     const now = Date.now();
     if (!force && now - lastRefreshAtRef.current < ESIMS_REFRESH_THROTTLE_MS) {
       return esims;
@@ -3929,7 +4032,7 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
       if (showLoader) {
         setLoading(true);
       }
-      refreshedRows = await loadVerifiedEsims();
+      refreshedRows = await loadVerifiedEsims(forceUsageSync);
     })().finally(() => {
       refreshInFlightRef.current = null;
     });
@@ -3942,14 +4045,18 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
     return readMyEsimsSnapshot();
   };
 
-  const loadFastEsims = async () => {
+  const loadFastEsims = async (): Promise<MyEsimItem[]> => {
     try {
       const fastRows = await loadMyEsimsPageContent({
         includeOrderLifecycle: false,
         includeTopUpSupport: false,
+        includeDestinationLookup: false,
       });
       setEsims(fastRows);
       setLoading(false);
+      lastRefreshAtRef.current = Date.now();
+      writeMyEsimsSnapshot(fastRows);
+      return fastRows;
     } catch (error) {
       console.warn("Fast My eSIM load failed; keeping cached snapshot.", error);
       const cached = readMyEsimsSnapshot();
@@ -3957,6 +4064,7 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
         setEsims(cached);
       }
       setLoading(false);
+      return cached;
     }
   };
 
@@ -3971,13 +4079,14 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
       if (!hasCachedSnapshotOnBoot) {
         setLoading(true);
         await loadFastEsims();
+        return;
       } else {
         setLoading(false);
       }
       if (!mounted) {
         return;
       }
-      await refreshEsims(false, true);
+      await refreshEsims(false, true, false);
     };
 
     const handleResume = () => {
@@ -4038,7 +4147,7 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
   };
 
   const resolveQrEsim = async (esim: MyEsimItem): Promise<MyEsimItem> => {
-    const refreshed = await refreshEsims(false, true);
+    const refreshed = await loadFastEsims();
     const refreshedMatch = findBestMatchingEsim(refreshed, esim);
     if (refreshedMatch) {
       return refreshedMatch;
@@ -4051,7 +4160,7 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
   const handleQrInstalled = async (esim: MyEsimItem) => {
     const latestEsim = await resolveQrEsim(esim);
     if (!latestEsim.canActivate) {
-      await refreshEsims(false, true);
+      await refreshEsims(false, true, false);
       return;
     }
 
@@ -4068,13 +4177,13 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
       toast.error("Activation sync is still pending", {
         description: response.error || "Please refresh in a few seconds.",
       });
-      await refreshEsims(false, true);
+      await refreshEsims(false, true, false);
       return;
     }
 
     markActivationPending([latestEsim.orderReference, latestEsim.iccid, latestEsim.id, latestEsim.activationCode]);
     toast.success("Activation synced");
-    await refreshEsims(false, true);
+    await refreshEsims(false, true, false);
     setSelectedTab("active");
   };
 
@@ -4085,31 +4194,18 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
     }
 
     setBusyEsimId(esim.id);
-    const response = await activateEsim(esim.id, {
-      iccid: esim.iccid,
-      esimTranNo: esim.transactionId,
-      providerOrderNo: esim.orderReference,
-      id: esim.id,
-    });
+    let latestEsim = esim;
+    try {
+      const refreshedRows = await loadFastEsims();
+      latestEsim = findBestMatchingEsim(refreshedRows, esim) || esim;
+    } catch (error) {
+      console.warn("Activation refresh skipped; using current eSIM row.", error);
+    }
+    const nextActivationUrl = resolveActivationLaunchUrl(latestEsim);
     setBusyEsimId("");
 
-    if (!response.success && !resolveActivationLaunchUrl(esim)) {
-      toast.error("Activation failed", {
-        description: response.error || "Unable to activate this eSIM right now.",
-      });
-      return;
-    }
-
-    const responseRow = response.success && response.data && typeof response.data === "object" ? response.data : {};
-    const nextActivationUrl = resolveActivationLaunchUrl(esim, responseRow);
-
     if (!nextActivationUrl) {
-      if (response.success) {
-        toast.success("Activation request submitted");
-      } else {
-        toast.error("Activation link is not available yet.");
-      }
-      await refreshEsims(false, true);
+      toast.error("Activation link is not available yet.");
       return;
     }
 
@@ -4117,13 +4213,11 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
       toast.error("Open this from your phone", {
         description: "This device cannot launch eSIM installation links. Use View QR on mobile.",
       });
-      await refreshEsims(false, true);
       return;
     }
 
-    markActivationPending([esim.orderReference, esim.iccid, esim.id, esim.activationCode]);
-    markEsimPendingInUi(esim);
-    void refreshEsims(false, true);
+    markActivationPending([latestEsim.orderReference, latestEsim.iccid, latestEsim.id, latestEsim.activationCode]);
+    markEsimPendingInUi(latestEsim);
     toast.success("Opening activation");
     window.location.replace(nextActivationUrl);
   };
@@ -4177,7 +4271,7 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
     }
 
     toast.success("Top up completed");
-    await refreshEsims(false, true);
+    await refreshEsims(false, true, false);
   };
 
   return {
@@ -4194,7 +4288,7 @@ export function useMyEsimsPageModel(): MyEsimsPageModel {
     resolveQrEsim,
     handleQrInstalled,
     refresh: async (force = false) => {
-      await refreshEsims(false, force);
+      await refreshEsims(false, force, force);
     },
     handleActivate,
     handleTopUp,

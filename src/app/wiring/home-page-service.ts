@@ -54,6 +54,10 @@ export interface HomePageModel {
 const HOME_POPULAR_CONTENT_CACHE_KEY = "home.popular.content.v1";
 const HOME_POPULAR_CODES_CACHE_KEY = "home.popular.codes.v1";
 const HOME_MY_ESIMS_SNAPSHOT_KEY_PREFIX = "esim.myEsims.snapshot.v2.";
+const HOME_POPULAR_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const HOME_ACTIVE_ESIM_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const HOME_POPULAR_BACKGROUND_REFRESH_DELAY_MS = 10_000;
+const DEFAULT_POPULAR_COUNTRY_CODES = ["IQ", "TR", "AE", "SA", "US", "GB", "DE", "FR"] as const;
 
 function toNumber(value: unknown, fallback = 0): number {
   const parsed = Number(value);
@@ -203,7 +207,7 @@ export function getImmediateHomePopularContent(): HomePopularContent {
 
   const cachedCodes = readPopularCodesCache();
   return {
-    popularDestinations: buildPopularFromCodes(cachedCodes),
+    popularDestinations: buildPopularFromCodes(cachedCodes.length > 0 ? cachedCodes : [...DEFAULT_POPULAR_COUNTRY_CODES]),
     exchangeRate: "1320",
     markupPercent: "0",
   };
@@ -239,22 +243,14 @@ export async function loadHomePopularContent(): Promise<HomePopularContent> {
 }
 
 export async function loadHomeActiveEsimContent(): Promise<HomeActiveEsim | null> {
-  // Home only needs a summary card, but we need destination lookup to map country correctly
+  // Home only needs a summary card, so avoid the heavier lifecycle/top-up enrichment pass here.
   const myEsimsRows = await loadMyEsimsPageContent({
     includeTopUpSupport: false,
     includeOrderLifecycle: false,
-    includeDestinationLookup: true,
+    includeDestinationLookup: false,
   });
   const activeEsims = myEsimsRows.filter((item) => item.status === "active" && item.isInstalled);
-  if (activeEsims.length === 0) {
-    return null;
-  }
-  activeEsims.sort((a, b) => {
-    const timeA = new Date(a.activatedDate || "").getTime() || 0;
-    const timeB = new Date(b.activatedDate || "").getTime() || 0;
-    return timeB - timeA;
-  });
-  return normalizeActiveEsim(activeEsims[0]);
+  return activeEsims.length > 0 ? normalizeActiveEsim(activeEsims[0]) : null;
 }
 
 function readImmediateHomeActiveEsimFromSnapshot(): HomeActiveEsim | null {
@@ -269,21 +265,16 @@ function readImmediateHomeActiveEsimFromSnapshot(): HomeActiveEsim | null {
     }
     const parsed = JSON.parse(raw);
     const rows = Array.isArray(parsed) ? parsed : [];
-    const activeEsims = rows.filter((item: any) =>
+    const active = rows.find((item: any) =>
       item &&
       typeof item === "object" &&
       String(item.status || "").toLowerCase() === "active" &&
-      Boolean(item.isInstalled)
+      Boolean(item.isInstalled),
     );
-    if (activeEsims.length === 0) {
+    if (!active) {
       return null;
     }
-    activeEsims.sort((a: any, b: any) => {
-      const timeA = new Date(a.activatedDate || "").getTime() || 0;
-      const timeB = new Date(b.activatedDate || "").getTime() || 0;
-      return timeB - timeA;
-    });
-    return normalizeActiveEsim(activeEsims[0] as MyEsimItem);
+    return normalizeActiveEsim(active as MyEsimItem);
   } catch {
     return null;
   }
@@ -317,52 +308,61 @@ export function useHomePageModel(): HomePageModel {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadPopular = async () => {
-      const content = await loadHomePopularContent();
-      setPopularDestinations(content.popularDestinations);
-      setExchangeRate(content.exchangeRate);
-      setMarkupPercent(content.markupPercent);
+      try {
+        const content = await loadHomePopularContent();
+        if (cancelled) {
+          return;
+        }
+        setPopularDestinations(content.popularDestinations);
+        setExchangeRate(content.exchangeRate);
+        setMarkupPercent(content.markupPercent);
+      } catch (error) {
+        console.warn("Home popular refresh skipped:", error);
+      }
     };
 
-    void loadPopular();
+    const initialRefreshId = window.setTimeout(() => {
+      void loadPopular();
+    }, HOME_POPULAR_BACKGROUND_REFRESH_DELAY_MS);
+
+    const intervalId = window.setInterval(() => {
+      void loadPopular();
+    }, HOME_POPULAR_REFRESH_INTERVAL_MS);
 
     const handlePopularUpdated = () => void loadPopular();
     const handleCurrencyUpdated = () => void loadPopular();
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") void loadPopular();
-    };
-    const removeAuthListener = addAuthSessionChangeListener(() => {
-      void loadPopular();
-    });
     window.addEventListener("tulip:popular-updated", handlePopularUpdated);
     window.addEventListener("tulip:currency-updated", handleCurrencyUpdated);
-    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
-      removeAuthListener();
+      cancelled = true;
+      window.clearTimeout(initialRefreshId);
+      window.clearInterval(intervalId);
       window.removeEventListener("tulip:popular-updated", handlePopularUpdated);
       window.removeEventListener("tulip:currency-updated", handleCurrencyUpdated);
-      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 
   useEffect(() => {
-    const loadActiveEsim = async () => {
-      const content = await loadHomeActiveEsimContent();
-      setActiveEsim(content);
+    const refreshActiveEsimFromSnapshot = () => {
+      setActiveEsim(readImmediateHomeActiveEsimFromSnapshot());
     };
 
-    void loadActiveEsim();
+    const intervalId = window.setInterval(() => {
+      refreshActiveEsimFromSnapshot();
+    }, HOME_ACTIVE_ESIM_REFRESH_INTERVAL_MS);
 
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void loadActiveEsim();
-      }
+    const handleMyEsimsUpdated = () => {
+      refreshActiveEsimFromSnapshot();
     };
-    window.addEventListener("focus", loadActiveEsim);
-    document.addEventListener("visibilitychange", handleVisibility);
+    const removeAuthListener = addAuthSessionChangeListener(refreshActiveEsimFromSnapshot);
+    window.addEventListener("tulip:my-esims-shadow-updated", handleMyEsimsUpdated);
     return () => {
-      window.removeEventListener("focus", loadActiveEsim);
-      document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(intervalId);
+      removeAuthListener();
+      window.removeEventListener("tulip:my-esims-shadow-updated", handleMyEsimsUpdated);
     };
   }, []);
 

@@ -403,19 +403,15 @@ async function completeAuthSession(
   let identity = normalized.identity;
   persistAuthIdentity(identity);
 
-  const reconciled = await reconcileAuthMeIdentity(identity);
-  if (!reconciled.identity) {
-    return {
-      success: false,
-      error: reconciled.error || "Unable to validate the authenticated session.",
-      statusCode: reconciled.statusCode,
-    };
-  }
-
-  if (hasIdentityMismatch(identity, reconciled.identity)) {
-    persistAuthIdentity(reconciled.identity);
-    identity = reconciled.identity;
-  }
+  void reconcileAuthMeIdentity(identity)
+    .then((reconciled) => {
+      if (reconciled.identity && hasIdentityMismatch(identity, reconciled.identity)) {
+        persistAuthIdentity(reconciled.identity);
+      }
+    })
+    .catch((error) => {
+      console.warn("Auth session background reconcile skipped:", error);
+    });
 
   return {
     success: true,

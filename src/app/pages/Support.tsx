@@ -414,6 +414,7 @@ export function Support() {
         initialMode="login"
         onClose={closeAuthModal}
         onSuccess={() => void handleAuthSuccess()}
+        redirectToHomeOnSuccess={false}
       />
     </div>
   );

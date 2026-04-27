@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, Globe, Signal, CreditCard, Plane, Building2, ChevronRight } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
+import { markHomeVisible } from "../wiring/perf-telemetry";
 import {
   useHomePageModel,
 } from "../wiring/home-page-service";
@@ -31,6 +33,10 @@ export function Home() {
     dataPercentage,
     welcomeName,
   } = useHomePageModel();
+
+  useEffect(() => {
+    markHomeVisible();
+  }, []);
 
   const handleServiceClick = (service: "esim" | "flight" | "hotel") => {
     if (service === "esim") {

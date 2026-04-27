@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { isAuthenticated as hasAuthenticatedSession, login, signup } from "./account-service";
 import { getCurrencySettings } from "./catalog-service";
-import { addAuthSessionChangeListener } from "./session";
 import {
   getAllDestinations,
   getCountryPlans,
@@ -93,7 +92,12 @@ const FALLBACK_REGIONS: PlansDestination[] = [
 
 const PLANS_CONTEXT_CACHE_KEY = "plans.page.context.v3";
 const DESTINATION_PREVIEW_CACHE_TTL_MS = 5 * 60 * 1000;
+const PLANS_CONTEXT_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const PLANS_POPULAR_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const BUNDLES_DEBOUNCE_MS = 350;
+const PREVIEW_DEBOUNCE_MS = 400;
 const destinationPreviewCache = new Map<string, { value: { priceFrom: number; plansCount: number }; expiresAt: number }>();
+const DEFAULT_POPULAR_COUNTRY_CODES = ["IQ", "TR", "AE", "SA", "US", "GB", "DE", "FR"] as const;
 const LOCAL_COUNTRY_CODES = [
   "AF", "AL", "DZ", "AS", "AD", "AO", "AI", "AQ", "AG", "AR", "AM", "AW", "AU", "AT", "AZ", "BS",
   "BH", "BD", "BB", "BY", "BE", "BZ", "BJ", "BM", "BT", "BO", "BQ", "BA", "BW", "BV", "BR", "IO",
@@ -316,6 +320,11 @@ function buildPerDayKeywordSource(row: any, id: string): string {
 
 function sortDestinations(list: PlansDestination[]): PlansDestination[] {
   return [...list].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function buildImmediatePopularDestinations(countries: PlansDestination[]): PlansDestination[] {
+  const byCode = new Map(countries.map((country) => [String(country.code || "").trim().toUpperCase(), country]));
+  return DEFAULT_POPULAR_COUNTRY_CODES.map((code) => byCode.get(code)).filter(Boolean) as PlansDestination[];
 }
 
 function dedupeBundlesByValidityAndData(bundles: PlansBundle[]): PlansBundle[] {
@@ -596,16 +605,19 @@ export async function loadPlansPageContext(): Promise<PlansPageContext> {
   return context;
 }
 
-export async function loadBundlesForDestination(destination: PlansDestination): Promise<PlansBundle[]> {
+export async function loadBundlesForDestination(
+  destination: PlansDestination,
+  options: { signal?: AbortSignal } = {},
+): Promise<PlansBundle[]> {
   const byTypeResponse =
     destination.type === "regional"
-      ? await getRegionPlans(destination.code)
-      : await getCountryPlans(destination.code);
+      ? await getRegionPlans(destination.code, { signal: options.signal, dedupeInFlight: true })
+      : await getCountryPlans(destination.code, { signal: options.signal, dedupeInFlight: true });
 
   const fallbackResponse =
     byTypeResponse.success && Array.isArray(byTypeResponse.data) && byTypeResponse.data.length > 0
       ? byTypeResponse
-      : await getCountryPlans(destination.code);
+      : await getCountryPlans(destination.code, { signal: options.signal, dedupeInFlight: true });
 
   const rows = fallbackResponse.success && Array.isArray(fallbackResponse.data) ? fallbackResponse.data : [];
   const destinationCode = String(destination.code || "").trim().toUpperCase();
@@ -627,7 +639,10 @@ export async function loadBundlesForDestination(destination: PlansDestination): 
   );
 }
 
-async function loadCountryPreviewMetrics(countryCode: string): Promise<{ priceFrom: number; plansCount: number }> {
+async function loadCountryPreviewMetrics(
+  countryCode: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<{ priceFrom: number; plansCount: number }> {
   const normalizedCode = String(countryCode || "").trim().toUpperCase();
   if (!normalizedCode || normalizedCode.length !== 2) {
     return { priceFrom: 0, plansCount: 0 };
@@ -638,7 +653,7 @@ async function loadCountryPreviewMetrics(countryCode: string): Promise<{ priceFr
     return cached;
   }
 
-  const response = await getCountryPlans(normalizedCode);
+  const response = await getCountryPlans(normalizedCode, { signal: options.signal, dedupeInFlight: true });
   if (!response.success || !Array.isArray(response.data)) {
     const fallback = { priceFrom: 0, plansCount: 0 };
     writeDestinationPreviewCache(normalizedCode, fallback);
@@ -669,11 +684,13 @@ export function usePlansPageModel(): PlansPageModel {
   const [searchQuery, setSearchQuery] = useState("");
   const [countries, setCountries] = useState<PlansDestination[]>(immediateContext.countries);
   const [regions, setRegions] = useState<PlansDestination[]>(immediateContext.regions);
-  const [popularDestinations, setPopularDestinations] = useState<PlansDestination[]>([]);
+  const [popularDestinations, setPopularDestinations] = useState<PlansDestination[]>(() =>
+    buildImmediatePopularDestinations(immediateContext.countries),
+  );
   const [selectedDestination, setSelectedDestination] = useState<PlansDestination | null>(null);
   const [bundles, setBundles] = useState<PlansBundle[]>([]);
   const [selectedBundleId, setSelectedBundleId] = useState("");
-  const [isLoadingDestinations, setIsLoadingDestinations] = useState(true);
+  const [isLoadingDestinations, setIsLoadingDestinations] = useState(!hasImmediateDestinations);
   const [isLoadingBundles, setIsLoadingBundles] = useState(false);
   const [exchangeRate, setExchangeRate] = useState(immediateContext.exchangeRate);
   const [markupPercent, setMarkupPercent] = useState(immediateContext.markupPercent);
@@ -688,53 +705,62 @@ export function usePlansPageModel(): PlansPageModel {
       if (!hasImmediateDestinations) {
         setIsLoadingDestinations(true);
       }
-      const context = await loadPlansPageContext();
-      if (cancelled) {
-        return;
+      try {
+        const context = await loadPlansPageContext();
+        if (cancelled) {
+          return;
+        }
+        setCountries(context.countries);
+        setRegions(context.regions);
+        setExchangeRate(context.exchangeRate);
+        setMarkupPercent(context.markupPercent);
+      } catch (error) {
+        console.warn("Plans context refresh skipped:", error);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingDestinations(false);
+        }
       }
-      setCountries(context.countries);
-      setRegions(context.regions);
-      setExchangeRate(context.exchangeRate);
-      setMarkupPercent(context.markupPercent);
-      setIsLoadingDestinations(false);
     };
+
+    void loadContext();
+    const intervalId = window.setInterval(() => {
+      void loadContext();
+    }, PLANS_CONTEXT_REFRESH_INTERVAL_MS);
 
     const handleCurrencyUpdated = () => {
       void loadContext();
     };
-
-    void loadContext();
     window.addEventListener("tulip:currency-updated", handleCurrencyUpdated);
-    const removeAuthListener = addAuthSessionChangeListener(() => {
-      void loadContext();
-    });
 
     return () => {
       cancelled = true;
-      removeAuthListener();
+      window.clearInterval(intervalId);
       window.removeEventListener("tulip:currency-updated", handleCurrencyUpdated);
     };
   }, [hasImmediateDestinations]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadPopularDestinations = async () => {
       const response = await getPopularDestinations();
-      if (response.success && Array.isArray(response.data)) {
+      if (!cancelled && response.success && Array.isArray(response.data)) {
         setPopularDestinations(response.data.map(normalizeDestinationRow));
       }
     };
 
     void loadPopularDestinations();
+    const intervalId = window.setInterval(() => {
+      void loadPopularDestinations();
+    }, PLANS_POPULAR_REFRESH_INTERVAL_MS);
 
     const handlePopularUpdated = () => void loadPopularDestinations();
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") void loadPopularDestinations();
-    };
     window.addEventListener("tulip:popular-updated", handlePopularUpdated);
-    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
       window.removeEventListener("tulip:popular-updated", handlePopularUpdated);
-      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 
@@ -760,19 +786,43 @@ export function usePlansPageModel(): PlansPageModel {
   }, [countries, regions, searchParams]);
 
   useEffect(() => {
-    const loadDestinationBundles = async () => {
-      if (!selectedDestination) {
-        return;
-      }
-
-      setIsLoadingBundles(true);
-      const nextBundles = await loadBundlesForDestination(selectedDestination);
-      setBundles(nextBundles);
+    if (!selectedDestination) {
+      setBundles([]);
       setSelectedBundleId("");
-      setIsLoadingBundles(false);
-    };
+      return;
+    }
 
-    void loadDestinationBundles();
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        setIsLoadingBundles(true);
+        try {
+          const nextBundles = await loadBundlesForDestination(selectedDestination, { signal: controller.signal });
+          if (cancelled) {
+            return;
+          }
+          setBundles(nextBundles);
+          setSelectedBundleId("");
+        } catch (error) {
+          if (!cancelled) {
+            console.warn("Bundles refresh skipped:", error);
+            setBundles([]);
+            setSelectedBundleId("");
+          }
+        } finally {
+          if (!cancelled) {
+            setIsLoadingBundles(false);
+          }
+        }
+      })();
+    }, BUNDLES_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [selectedDestination]);
 
   const destinations = activeTab === "country" ? countries : regions;
@@ -786,7 +836,7 @@ export function usePlansPageModel(): PlansPageModel {
 
   useEffect(() => {
     const query = searchQuery.trim();
-    if (!query || activeTab !== "country") {
+    if (!query || query.length < 2 || activeTab !== "country") {
       return;
     }
 
@@ -799,35 +849,43 @@ export function usePlansPageModel(): PlansPageModel {
     }
 
     let cancelled = false;
-    const loadPreviews = async () => {
-      const metrics = await Promise.all(
-        targets.map(async (item) => {
-          const code = String(item.code || "").trim().toUpperCase();
-          const resolved = item.priceFrom > 0
-            ? { priceFrom: item.priceFrom, plansCount: item.plansCount || 0 }
-            : await loadCountryPreviewMetrics(code);
-          return { code, resolved };
-        }),
-      );
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        const metrics = await Promise.all(
+          targets.map(async (item) => {
+            const code = String(item.code || "").trim().toUpperCase();
+            const resolved = item.priceFrom > 0
+              ? { priceFrom: item.priceFrom, plansCount: item.plansCount || 0 }
+              : await loadCountryPreviewMetrics(code, { signal: controller.signal });
+            return { code, resolved };
+          }),
+        );
 
-      if (cancelled) {
-        return;
-      }
+        if (cancelled) {
+          return;
+        }
 
-      setDestinationPreviewByCode((previous) => {
-        const next = { ...previous };
-        metrics.forEach(({ code, resolved }) => {
-          if (code) {
-            next[code] = resolved;
-          }
+        setDestinationPreviewByCode((previous) => {
+          const next = { ...previous };
+          metrics.forEach(({ code, resolved }) => {
+            if (code) {
+              next[code] = resolved;
+            }
+          });
+          return next;
         });
-        return next;
+      })().catch((error) => {
+        if (!cancelled) {
+          console.warn("Destination preview refresh skipped:", error);
+        }
       });
-    };
+    }, PREVIEW_DEBOUNCE_MS);
 
-    void loadPreviews();
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
   }, [activeTab, filteredDestinations, searchQuery]);
 
