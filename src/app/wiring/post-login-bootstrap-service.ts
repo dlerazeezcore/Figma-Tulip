@@ -1,5 +1,19 @@
+import { useUserPreferences } from "../store/user-preferences";
+import { requestApi } from "./http";
 import { loadHomePopularContent } from "./home-page-service";
 import { addAuthSessionChangeListener, getAuthToken, getUserId } from "./session";
+
+async function hydrateUserPreferencesFromAuthMe(): Promise<void> {
+  const response = await requestApi("/auth/me");
+  if (!response.success) {
+    return;
+  }
+  const data = (response.data && typeof response.data === "object" ? response.data : {}) as Record<string, unknown>;
+  useUserPreferences.getState().hydrateFromBackend({
+    preferredLanguage: typeof data.preferredLanguage === "string" ? data.preferredLanguage : null,
+    preferredCurrency: typeof data.preferredCurrency === "string" ? data.preferredCurrency : null,
+  });
+}
 
 const POST_LOGIN_BOOTSTRAP_STALE_MS = 60 * 1000;
 const POST_LOGIN_BOOTSTRAP_DELAY_MS = 30_000;
@@ -37,6 +51,9 @@ function runPostLoginBootstrap(sessionKey: string, reason: string): void {
   }
 
   const task = (async () => {
+    await hydrateUserPreferencesFromAuthMe().catch((error) => {
+      console.warn(`[bootstrap] failed to hydrate user preferences reason=${reason}`, error);
+    });
     await new Promise((resolve) => setTimeout(resolve, POST_LOGIN_BOOTSTRAP_DELAY_MS));
     await loadHomePopularContent();
     bootstrapLastRunAtBySession.set(sessionKey, Date.now());
