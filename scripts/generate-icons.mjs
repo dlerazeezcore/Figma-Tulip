@@ -13,10 +13,11 @@ async function generate() {
   const iosPath = path.join(IOS_ICONSET_DIR, IOS_ICON_FILE);
   if (!fs.existsSync(IOS_ICONSET_DIR)) fs.mkdirSync(IOS_ICONSET_DIR, { recursive: true });
 
-  const iosLogoSize = 980; // Larger logo size
+  const iosLogoSize = 940; // Keep small safety margin while filling most of the icon
   const iosPadding = (1024 - iosLogoSize) / 2;
 
   await sharp(SVG_SOURCE)
+    .trim() // Remove extra whitespace in source artwork so logo is centered/fills better
     .resize(iosLogoSize, iosLogoSize, { 
       fit: 'contain', 
       background: '#FFFFFF' 

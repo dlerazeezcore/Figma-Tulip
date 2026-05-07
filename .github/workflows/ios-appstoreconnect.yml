@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   build-and-upload:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 60
 
     steps:
@@ -41,6 +41,11 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
+      - name: Show Xcode and SDK versions
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Install dependencies
         run: |
