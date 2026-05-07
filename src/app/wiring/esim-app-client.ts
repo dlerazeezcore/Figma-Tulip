@@ -1942,13 +1942,7 @@ export function getAuthMeIdentity(tokenOverride?: string): Promise<ApiResponse> 
   })();
 }
 
-export function updateAuthMeProfile(payload: {
-  name?: string;
-  email?: string | null;
-  preferredLanguage?: string | null;
-  preferredCurrency?: string | null;
-  notificationsEnabled?: boolean;
-}): Promise<ApiResponse> {
+export function updateAuthMeProfile(payload: { name?: string; email?: string | null }): Promise<ApiResponse> {
   return (async () => {
     const nextPayload: AnyRecord = {};
 
@@ -1968,22 +1962,6 @@ export function updateAuthMeProfile(payload: {
       const rawEmail = payload.email;
       const trimmedEmail = toString(rawEmail).trim().toLowerCase();
       nextPayload.email = rawEmail === null || trimmedEmail === "" ? null : trimmedEmail;
-    }
-
-    if (payload?.preferredLanguage !== undefined) {
-      const raw = payload.preferredLanguage;
-      const trimmed = toString(raw).trim().toLowerCase();
-      nextPayload.preferredLanguage = raw === null || trimmed === "" ? null : trimmed;
-    }
-
-    if (payload?.preferredCurrency !== undefined) {
-      const raw = payload.preferredCurrency;
-      const trimmed = toString(raw).trim().toUpperCase();
-      nextPayload.preferredCurrency = raw === null || trimmed === "" ? null : trimmed;
-    }
-
-    if (payload?.notificationsEnabled !== undefined) {
-      nextPayload.notificationsEnabled = Boolean(payload.notificationsEnabled);
     }
 
     if (Object.keys(nextPayload).length === 0) {

@@ -3440,19 +3440,7 @@ function normalizeMyEsim(
   const supportTopUpType = resolveSupportTopUpType(row, raw);
   const topUp = topUpSupport.get(countryCode) || { hasTopUp: false, planId: "" };
   const hasTopUp = supportTopUpType > 0;
-
-  // Prefer backend-derived flags when present; otherwise compute from local fields.
-  const backendCanShowQr = (row as { canShowQr?: unknown })?.canShowQr ?? (raw as { canShowQr?: unknown })?.canShowQr;
-  const backendCanActivate = (row as { canActivate?: unknown })?.canActivate ?? (raw as { canActivate?: unknown })?.canActivate;
-  const backendCanTopUp = (row as { canTopUp?: unknown })?.canTopUp ?? (raw as { canTopUp?: unknown })?.canTopUp;
-
-  const canShowQr = typeof backendCanShowQr === "boolean"
-    ? backendCanShowQr
-    : finalStatus !== "expired" && Boolean(qrPayload || activationCode || qrCodeUrl);
-  const canActivate = typeof backendCanActivate === "boolean"
-    ? backendCanActivate
-    : finalStatus === "inactive" && !isActivated && Boolean(qrPayload || row?.iccid || raw?.iccid || transactionId || orderReference || id);
-  const canTopUp = typeof backendCanTopUp === "boolean" ? backendCanTopUp : hasTopUp;
+  const canTopUp = hasTopUp;
 
   return {
     id,
@@ -3481,8 +3469,11 @@ function normalizeMyEsim(
     qrPayload,
     hasTopUp,
     topUpPlanId: hasTopUp ? (topUp.planId || "") : "",
-    canShowQr,
-    canActivate,
+    canShowQr: finalStatus !== "expired" && Boolean(qrPayload || activationCode || qrCodeUrl),
+    canActivate:
+      finalStatus === "inactive" &&
+      !isActivated &&
+      Boolean(qrPayload || row?.iccid || raw?.iccid || transactionId || orderReference || id),
     canTopUp,
   };
 }
