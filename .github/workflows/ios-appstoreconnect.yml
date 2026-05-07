@@ -121,7 +121,6 @@ jobs:
             DEVELOPMENT_TEAM="${{ inputs.team_id }}" \
             PRODUCT_BUNDLE_IDENTIFIER="${{ inputs.bundle_id }}" \
             CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
             clean archive
 
       - name: Export IPA
