@@ -162,6 +162,16 @@ Run iOS directly:
 npm run ios:run
 ```
 
+## iOS App Store Connect CI
+
+This repo includes a GitHub Actions workflow for building and uploading iOS builds to TestFlight/App Store Connect:
+
+- `.github/workflows/ios-appstoreconnect.yml`
+
+Setup guide:
+
+- `docs/ios-appstoreconnect-github-actions.md`
+
 ## Android Release
 
 Build, sync, bump Android `versionCode`, and generate a signed bundle:
