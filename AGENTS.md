@@ -36,6 +36,15 @@ Always follow these structure constraints and conventions for this codebase.
 - **Sync Workflow**: Always run `npm run ios:sync` or `npm run android:sync` after web changes. This ensures the bridge code and latest assets are refreshed.
 - **Gradle Integrity**: Keep `android/gradle/wrapper/gradle-wrapper.jar` and `android/gradlew` intact for Android build reliability.
 
+## App Store Connect CI Integrity
+- **Mandatory Workflow File**: Never delete or rename `.github/workflows/ios-appstoreconnect.yml`. Keep this workflow intact unless explicitly asked to change iOS release automation.
+- **Release Docs**: Preserve `docs/ios-appstoreconnect-github-actions.md` so operators can recover setup quickly.
+- **Secrets and Keys**: Never commit `.p8`, `.p12`, private keys, or certificate raw contents to the repository.
+- **GitHub Actions Configuration**: Keep these repo-level Actions values configured and do not remove them during cleanup/refactor:
+  - Secrets: `APPSTORE_API_PRIVATE_KEY`, `APPSTORE_CERTIFICATES_FILE_BASE64`, `APPSTORE_CERTIFICATES_PASSWORD`, `KEYCHAIN_PASSWORD`
+  - Variables: `APPSTORE_API_KEY_ID`, `APPSTORE_ISSUER_ID`
+- **Migration Rule**: If CI or repo is migrated, replicate the secrets/variables above before running iOS releases.
+
 ## General Principles
 - Use Tailwind generic utility classes. Do NOT create new CSS files unless absolutely necessary (all variables should go to `src/styles/theme.css`).
 - Keep Modal/Sheet definitions clean, returning `null` if not `isOpen`.
