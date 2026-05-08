@@ -175,8 +175,12 @@ export interface SupportPageModel {
   handleInputKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-const SUPPORT_POLL_INTERVAL_MS = 12_000;
-const SUPPORT_POLL_INACTIVE_INTERVAL_MS = 30_000;
+// Polling cadences. Drop the base poll from 12s to 20s to halve mobile
+// battery use; keep the fast 3s window for the 15s after a user sends.
+// "Inactive" interval is now effectively unused — when the page is hidden
+// we suspend polling entirely (see startPolling visibility handling).
+const SUPPORT_POLL_INTERVAL_MS = 20_000;
+const SUPPORT_POLL_INACTIVE_INTERVAL_MS = 60_000;
 const SUPPORT_POLL_FAST_INTERVAL_MS = 3_000;
 const SUPPORT_POLL_FAST_WINDOW_MS = 15_000;
 const SUPPORT_POLL_BACKOFF_MS = [2_000, 5_000, 10_000] as const;
@@ -190,16 +194,35 @@ const ALLOWED_SUPPORT_IMAGE_TYPES = new Set([
   "image/heic",
   "image/heif",
 ]);
-const SUPPORT_UPLOAD_BUCKET_HINT_KEY = "supportUploadBucketHint";
-const SUPPORT_UPLOAD_ORIGIN_HINT_KEY = "supportUploadOriginHint";
+// V2 of the bucket / origin hints. The Sydney→Frankfurt DB cutover invalidated
+// the v1 keys (they pointed at the paused Supabase project's storage host),
+// so existing client copies would 404 on attachment image URLs until they
+// re-resolved. Bumping to v2 forces a one-time refresh on the first run.
+const SUPPORT_UPLOAD_BUCKET_HINT_KEY = "supportUploadBucketHintV2";
+const SUPPORT_UPLOAD_ORIGIN_HINT_KEY = "supportUploadOriginHintV2";
+const SUPPORT_HINT_LEGACY_KEYS = ["supportUploadBucketHint", "supportUploadOriginHint"] as const;
+const SUPPORT_CONVERSATION_CACHE_PREFIX = "support.conversation.v1";
+const SUPPORT_CONVERSATION_CACHE_MAX_MESSAGES = 50;
 let hasShownAdminTokenWarning = false;
+let hasClearedLegacyHintsThisSession = false;
+
+// Tiny module-level cache for the bucket / origin hints. localStorage reads
+// are cheap individually, but `buildAttachmentUrlCandidates` runs per
+// attachment per message per render — avoid the JS-layer overhead.
+const __storageHintCache: Map<string, string> = new Map();
 
 function readStorageHint(key: string): string {
-  try {
-    return String(localStorage.getItem(key) || "").trim();
-  } catch {
-    return "";
+  if (__storageHintCache.has(key)) {
+    return __storageHintCache.get(key) || "";
   }
+  let value = "";
+  try {
+    value = String(localStorage.getItem(key) || "").trim();
+  } catch {
+    value = "";
+  }
+  __storageHintCache.set(key, value);
+  return value;
 }
 
 function writeStorageHint(key: string, value: string): void {
@@ -209,6 +232,73 @@ function writeStorageHint(key: string, value: string): void {
     }
   } catch {
     // Ignore storage write failures in constrained environments.
+  }
+  __storageHintCache.set(key, value || "");
+}
+
+function clearLegacyStorageHintsOnce(): void {
+  if (hasClearedLegacyHintsThisSession) {
+    return;
+  }
+  hasClearedLegacyHintsThisSession = true;
+  try {
+    for (const key of SUPPORT_HINT_LEGACY_KEYS) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+// Read a cached SupportChatMessage[] for the given user from localStorage.
+// Returns null on miss / quota-exceeded / parse error — the caller falls back
+// to the network fetch in that case.
+function readSupportConversationCache(userId: string): {
+  messages: any[];
+  lastSyncedAt: number;
+  conversationId: string | null;
+} | null {
+  if (!userId) {
+    return null;
+  }
+  try {
+    const raw = localStorage.getItem(`${SUPPORT_CONVERSATION_CACHE_PREFIX}.${userId}`);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.messages)) {
+      return null;
+    }
+    return {
+      messages: parsed.messages,
+      lastSyncedAt: Number(parsed.lastSyncedAt) || 0,
+      conversationId: parsed.conversationId ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeSupportConversationCache(
+  userId: string,
+  payload: { messages: any[]; conversationId: string | null }
+): void {
+  if (!userId) {
+    return;
+  }
+  try {
+    // Cap to the last N messages so a chatty conversation can't exceed
+    // localStorage quotas. The trailing slice preserves the most recent.
+    const trimmed = payload.messages.slice(-SUPPORT_CONVERSATION_CACHE_MAX_MESSAGES);
+    const body = JSON.stringify({
+      messages: trimmed,
+      lastSyncedAt: Date.now(),
+      conversationId: payload.conversationId,
+    });
+    localStorage.setItem(`${SUPPORT_CONVERSATION_CACHE_PREFIX}.${userId}`, body);
+  } catch {
+    // Ignore quota-exceeded / serialization errors; cache is best-effort.
   }
 }
 
@@ -583,11 +673,21 @@ function sanitizeSupportMessageContent(rawText: string, attachments: SupportAtta
   if (attachments.length === 0) {
     return normalized;
   }
-  const lowered = normalized.toLowerCase();
-  if (ATTACHMENT_ONLY_MESSAGE_MARKERS.has(lowered)) {
-    return "";
+  // Drop only the "[attachment only]" marker token itself, not the surrounding
+  // text. Previously a message like "Here is your invoice [attachment only]"
+  // was stripped entirely whenever it equaled the marker; now we strip just
+  // the marker substring (case-insensitive) and trim, preserving anything
+  // the user actually typed alongside it.
+  let stripped = normalized;
+  for (const marker of ATTACHMENT_ONLY_MESSAGE_MARKERS) {
+    // Build a case-insensitive global regex from the marker, escaping regex
+    // metacharacters since the markers contain `[` `]` `(` `)`.
+    const escaped = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    stripped = stripped.replace(new RegExp(escaped, "gi"), " ");
   }
-  return normalized;
+  // Collapse whitespace introduced by removal and trim.
+  stripped = stripped.replace(/\s+/g, " ").trim();
+  return stripped;
 }
 
 function normalizeSupportMessageRow(message: any): SupportMessage {
@@ -1734,9 +1834,24 @@ export function useSupportPageModel(): SupportPageModel {
     if (!textareaRef.current) {
       return;
     }
-
-    textareaRef.current.style.height = "auto";
-    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 128)}px`;
+    // Schedule the resize on the next frame so we don't fight the browser's
+    // own layout pass on every keystroke (the previous synchronous
+    // height-=auto / read-scrollHeight / write-height path produced visible
+    // flicker when pasting long text).
+    const handle = window.requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) {
+        return;
+      }
+      el.style.height = "auto";
+      const next = `${Math.min(el.scrollHeight, 128)}px`;
+      if (el.style.height !== next) {
+        el.style.height = next;
+      }
+    });
+    return () => {
+      window.cancelAnimationFrame(handle);
+    };
   }, [inputValue]);
 
   type SupportSyncResult = "success" | "unauthorized" | "error" | "aborted" | "skipped";
@@ -1763,13 +1878,17 @@ export function useSupportPageModel(): SupportPageModel {
     }
   };
 
-  const getNextPollInterval = () => {
+  // Returns null when the page is hidden — caller suspends polling entirely
+  // until visibilitychange fires "visible" again. This is the right call on
+  // mobile: keeping a 30 s polling timer alive while the app is backgrounded
+  // burns battery for stale data the user can't see.
+  const getNextPollInterval = (): number | null => {
     const now = Date.now();
     if (now < fastPollUntilRef.current) {
       return SUPPORT_POLL_FAST_INTERVAL_MS;
     }
     if (document.visibilityState !== "visible") {
-      return SUPPORT_POLL_INACTIVE_INTERVAL_MS;
+      return null;
     }
     return SUPPORT_POLL_INTERVAL_MS;
   };
@@ -1862,7 +1981,22 @@ export function useSupportPageModel(): SupportPageModel {
         pushStatusCounts,
       });
       if (mountedRef.current) {
-        setMessages((current) => mergeMessages(serverMessages, current));
+        setMessages((current) => {
+          const next = mergeMessages(serverMessages, current);
+          // Persist the merged conversation so the next mount can paint
+          // instantly from cache while a fresh sync runs in the background.
+          // We store conversationId as null because SupportChatMessage doesn't
+          // surface it directly on this shape; the next sync will re-establish
+          // it from the server response.
+          const cacheUserId = String(getUserId() || "").trim();
+          if (cacheUserId) {
+            writeSupportConversationCache(cacheUserId, {
+              messages: next,
+              conversationId: null,
+            });
+          }
+          return next;
+        });
       }
       pollBackoffIndexRef.current = 0;
       return "success";
@@ -1879,7 +2013,18 @@ export function useSupportPageModel(): SupportPageModel {
     if (!mountedRef.current || pollPausedRef.current || cycleId !== pollCycleRef.current) {
       return;
     }
-    const delay = typeof delayMs === "number" ? Math.max(0, delayMs) : getNextPollInterval();
+    let delay: number;
+    if (typeof delayMs === "number") {
+      delay = Math.max(0, delayMs);
+    } else {
+      const computed = getNextPollInterval();
+      if (computed === null) {
+        // Page hidden — suspend polling. visibilitychange listener will
+        // restart it via startPolling(0, true) when the page comes back.
+        return;
+      }
+      delay = computed;
+    }
     pollTimerRef.current = window.setTimeout(() => {
       if (!mountedRef.current || pollPausedRef.current || cycleId !== pollCycleRef.current) {
         return;
@@ -1947,8 +2092,13 @@ export function useSupportPageModel(): SupportPageModel {
     mountedRef.current = true;
 
     const loadInitialConversation = async () => {
-      setIsLoading(true);
+      // Best-effort: clear v1 hints once per session so cached image URLs
+      // referencing the legacy Sydney bucket get re-resolved against Frankfurt.
+      clearLegacyStorageHintsOnce();
 
+      // Hydrate from local cache *immediately* so the page paints with real
+      // content in <50ms instead of a 1-2s blank spinner. The fresh sync
+      // below will reconcile and update.
       if (!isAuthenticated()) {
         if (!cancelled) {
           setRequiresAuth(true);
@@ -1956,6 +2106,22 @@ export function useSupportPageModel(): SupportPageModel {
           setIsLoading(false);
         }
         return;
+      }
+
+      const cacheUserId = String(getUserId() || "").trim();
+      const cached = cacheUserId ? readSupportConversationCache(cacheUserId) : null;
+      if (cached && cached.messages.length > 0 && !cancelled) {
+        // Cache rehydrate: skip the loading-spinner state. Background sync
+        // will overwrite with fresh server state in a moment.
+        // Revive timestamps -- JSON.stringify turned them into strings.
+        const revived: SupportChatMessage[] = cached.messages.map((m: any) => ({
+          ...m,
+          timestamp: m?.timestamp instanceof Date ? m.timestamp : new Date(m?.timestamp),
+        }));
+        setMessages(revived);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
       }
 
       const result = await syncConversation(true, true);
