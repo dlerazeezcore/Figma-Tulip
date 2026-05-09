@@ -50,3 +50,40 @@ Always follow these structure constraints and conventions for this codebase.
 - Keep Modal/Sheet definitions clean, returning `null` if not `isOpen`.
 - Premium mobile-first design: Solid buttons (`bg-primary`), `rounded-xl` for cards, clear hierarchy.
 - For icons, always use `lucide-react`.
+
+## AI Studio Guardrails (Required)
+1. NEVER edit pnpm-lock.yaml by hand. Always run `pnpm install` after changing package.json so both files update atomically. If you only have the ability to write files (no shell), then change package.json and let CI fail loudly — don't try to surgically patch the lockfile.
+2. Keep `ios/App/App/Info.plist`'s CFBundleIconName entry. Do not remove it. The app icon disappears from TestFlight without it.
+3. The following files are INTENTIONALLY DELETED. Do not restore them, do not add new code that imports them, and do not add their corresponding shadcn imports:
+   - src/app/components/ui/menubar.tsx
+   - src/app/components/ui/breadcrumb.tsx
+   - src/app/components/ui/navigation-menu.tsx
+   - src/app/components/ui/context-menu.tsx
+   - src/app/components/ui/resizable.tsx
+   - src/app/components/ui/chart.tsx
+   - src/app/components/ui/pagination.tsx
+   - src/app/components/ui/carousel.tsx
+   - src/app/components/ui/command.tsx
+   - src/app/wiring/admin-config-service.ts
+   - src/app/wiring/home-tutorial-service.ts
+   - src/app/wiring/support-page-service.ts
+   - src/app/pages/Support.tsx
+   - src/app/components/SupportMessageBubble.tsx
+   - src/app/components/SupportSkeleton.tsx
+   - src/imports/Screenshot_2026-04-15_at_23.06.02.png
+   - src/imports/Screenshot_2026-04-15_at_23.08.19.png
+   - src/imports/Screenshot_2026-04-15_at_23.12.35.png
+   - src/imports/Screenshot_2026-04-15_at_23.15.51.png
+4. The following dependencies are INTENTIONALLY REMOVED. Do not add them back to package.json:
+   - cmdk
+   - recharts
+   - react-resizable-panels
+   - embla-carousel-react
+   - @radix-ui/react-context-menu
+   - @radix-ui/react-menubar
+   - @radix-ui/react-navigation-menu
+5. The following file MUST be kept and never deleted as "unused":
+   - src/imports/Tulipbooking-logo-full.svg
+   It looks orphan to a TS-only grep but is consumed by scripts/generate-icons.mjs (line 5: SVG_SOURCE) to generate every iOS and Android app-icon variant.
+6. The Telegram support chat, the Home Tutorial Video admin panel, and the Whitelist Settings admin panel were all intentionally removed. Do not re-add admin UI sections, services, or backend client functions for any of them. The in-app support entry point is now a WhatsApp deeplink to +9647507201111 (already wired in Settings.tsx).
+7. iOS version bumping rules for App Store uploads: Apple requires CFBundleShortVersionString (MARKETING_VERSION in project.pbxproj) to increase on EVERY new App Store submission. Bump it (e.g. 1.1.1 → 1.1.2) before each upload, and also bump CURRENT_PROJECT_VERSION (build number) at the same time.
