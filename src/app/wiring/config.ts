@@ -5,7 +5,6 @@ const DEFAULT_NATIVE_API_BASE = "https://mean-lettie-corevia-0bd7cc91.koyeb.app/
 const DEFAULT_WEB_API_BASE = "/api/v1";
 
 const BACKEND_CAPABILITIES = {
-  supportChat: true,
   pushNotifications: true,
   currencySettings: true,
   fibPayments: true,
