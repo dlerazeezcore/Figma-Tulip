@@ -190,14 +190,14 @@ function normalizeActiveEsim(item: MyEsimItem): HomeActiveEsim {
   };
 }
 
-export function buildPlansRouteFromDestination(destination: HomeDestination): string {
+function buildPlansRouteFromDestination(destination: HomeDestination): string {
   if (!destination.code) {
     return "/plans";
   }
   return `/plans?type=${encodeURIComponent(destination.type)}&code=${encodeURIComponent(destination.code)}`;
 }
 
-export function getImmediateHomePopularContent(): HomePopularContent {
+function getImmediateHomePopularContent(): HomePopularContent {
   const cached = readHomePopularContentCache();
   if (cached) {
     return cached;
@@ -240,7 +240,7 @@ export async function loadHomePopularContent(): Promise<HomePopularContent> {
   return content;
 }
 
-export async function loadHomeActiveEsimContent(): Promise<HomeActiveEsim | null> {
+async function loadHomeActiveEsimContent(): Promise<HomeActiveEsim | null> {
   // Home only needs a summary card, so avoid the heavier lifecycle/top-up enrichment pass here.
   const myEsimsRows = await loadMyEsimsPageContent({
     includeTopUpSupport: false,
@@ -278,7 +278,7 @@ function readImmediateHomeActiveEsimFromSnapshot(): HomeActiveEsim | null {
   }
 }
 
-export async function loadHomePageContent(): Promise<HomePageContent> {
+async function loadHomePageContent(): Promise<HomePageContent> {
   const [popularContent, activeEsim] = await Promise.all([
     loadHomePopularContent(),
     loadHomeActiveEsimContent(),

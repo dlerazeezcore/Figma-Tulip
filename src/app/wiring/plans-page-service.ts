@@ -425,7 +425,7 @@ function normalizeDialCode(dialCode: string): string {
   return clean.startsWith("+") ? clean : `+${clean}`;
 }
 
-export function buildFullPhoneNumber(dialCode: string, phoneNumber: string): string {
+function buildFullPhoneNumber(dialCode: string, phoneNumber: string): string {
   const dial = normalizeDialCode(dialCode);
   const dialDigits = dial.replace(/[^\d]/g, "");
   let localDigits = sanitizePhoneNumber(phoneNumber);
@@ -445,11 +445,11 @@ export function buildFullPhoneNumber(dialCode: string, phoneNumber: string): str
   return `${dial}${local}`;
 }
 
-export function getUserAuthState(): boolean {
+function getUserAuthState(): boolean {
   return hasAuthenticatedSession();
 }
 
-export async function authenticateForCheckout(payload: {
+async function authenticateForCheckout(payload: {
   mode: "login" | "signup";
   dialCode: string;
   phoneNumber: string;
@@ -472,7 +472,7 @@ export async function authenticateForCheckout(payload: {
   return login(fullPhoneNumber, payload.password);
 }
 
-export function createCheckoutPayload(destination: PlansDestination, bundle: PlansBundle): CheckoutPayload {
+function createCheckoutPayload(destination: PlansDestination, bundle: PlansBundle): CheckoutPayload {
   return {
     country: {
       name: destination.name,
@@ -531,7 +531,7 @@ function writePlansPageContextCache(context: PlansPageContext): void {
   }
 }
 
-export function getImmediatePlansPageContext(): PlansPageContext {
+function getImmediatePlansPageContext(): PlansPageContext {
   const cached = readPlansPageContextCache();
   if (cached) {
     return cached;
@@ -545,11 +545,11 @@ export function getImmediatePlansPageContext(): PlansPageContext {
   };
 }
 
-export function getValidityFilters(plans: PlansBundle[]): number[] {
+function getValidityFilters(plans: PlansBundle[]): number[] {
   return [...new Set(plans.map((plan) => plan.validity).filter((days) => days > 0))].sort((a, b) => a - b);
 }
 
-export function filterPlansByValidity(plans: PlansBundle[], validity: number | "all"): PlansBundle[] {
+function filterPlansByValidity(plans: PlansBundle[], validity: number | "all"): PlansBundle[] {
   const sorted = [...plans].sort((a, b) => {
     if (a.validity !== b.validity) {
       return a.validity - b.validity;
@@ -564,7 +564,7 @@ export function filterPlansByValidity(plans: PlansBundle[], validity: number | "
   return sorted.filter((plan) => plan.validity === validity);
 }
 
-export async function loadPlansPageContext(): Promise<PlansPageContext> {
+async function loadPlansPageContext(): Promise<PlansPageContext> {
   const cached = readPlansPageContextCache();
   const [destinationsResponse, currencyResponse] = await Promise.all([
     getAllDestinations(),
@@ -605,7 +605,7 @@ export async function loadPlansPageContext(): Promise<PlansPageContext> {
   return context;
 }
 
-export async function loadBundlesForDestination(
+async function loadBundlesForDestination(
   destination: PlansDestination,
   options: { signal?: AbortSignal } = {},
 ): Promise<PlansBundle[]> {

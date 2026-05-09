@@ -4,7 +4,6 @@ export {
   getAccountDeletionUrl,
   loadMyProfile,
   updateMyProfile,
-  updateMyProfileName,
 } from "./esim-app-service";
 
 export {

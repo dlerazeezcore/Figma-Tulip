@@ -51,16 +51,8 @@ export function getUserId(): string {
   return read(USER_ID_KEY);
 }
 
-export function getAuthId(): string {
+function getAuthId(): string {
   return read(AUTH_ID_KEY) || getUserId();
-}
-
-export function getAdminUserId(): string {
-  return read(ADMIN_USER_ID_KEY);
-}
-
-export function getAccountUserId(): string {
-  return read(ACCOUNT_USER_ID_KEY);
 }
 
 export function getUserPhone(): string {
@@ -80,14 +72,6 @@ export function setUserName(name: string): void {
   emitAuthSessionChanged();
 }
 
-export function getAuthSubjectType(): "user" | "admin" | "" {
-  const value = read(AUTH_SUBJECT_TYPE_KEY).trim().toLowerCase();
-  if (value === "user" || value === "admin") {
-    return value;
-  }
-  return "";
-}
-
 export function isAuthenticated(): boolean {
   return Boolean(getAuthToken() && getAuthId());
 }
@@ -95,12 +79,6 @@ export function isAuthenticated(): boolean {
 export function isAdmin(): boolean {
   const value = read(IS_ADMIN_KEY).trim().toLowerCase();
   return value === "1" || value === "true";
-}
-
-export function setAdminAccess(value: boolean): void {
-  write(IS_ADMIN_KEY, value ? "1" : "0");
-  write(AUTH_SUBJECT_TYPE_KEY, value ? "admin" : "user");
-  emitAuthSessionChanged();
 }
 
 export function setAuthSession(payload: {
@@ -172,10 +150,6 @@ export function setAuthSession(payload: {
   }
 
   emitAuthSessionChanged();
-}
-
-export function setAuthToken(token: string, userId: string): void {
-  setAuthSession({ token, userId });
 }
 
 export function clearAuthSession(): void {

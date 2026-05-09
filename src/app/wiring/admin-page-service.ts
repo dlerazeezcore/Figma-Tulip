@@ -2,23 +2,25 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { unregisterPushDevice } from "./esim-app-client";
 import {
+  clearAdminPopularDestinations,
+  getAdminPopularDestinations,
+  setAdminPopularDestinations,
+} from "./esimaccesswiring";
+import {
   addSuperAdmin,
   blockUserAccount,
-  clearAdminPopularDestinations,
   deleteUserAccount,
   editUserAccount,
-  grantUserLoyalty,
-  getUsers,
-  getAdminPopularDestinations,
   getCurrencySettings,
   getPushNotificationSummary,
   getSuperAdmins,
+  getUsers,
+  grantUserLoyalty,
   removeSuperAdmin,
   sendAppUpdatePushNotification as sendAppUpdatePush,
   sendPushNotification,
-  setAdminPopularDestinations,
   updateCurrencySettings,
-} from "./admin-config-service";
+} from "./esim-app-service";
 
 export interface AdminLoadResult {
   popularCodes: string[];
@@ -151,7 +153,7 @@ export interface AdminPageModel {
   notifyUnsupportedUserAction: (message: string) => void;
 }
 
-export function parseIsoCodeList(input: string): string[] {
+function parseIsoCodeList(input: string): string[] {
   return String(input || "")
     .split(",")
     .map((value) => value.trim().toUpperCase())
@@ -222,7 +224,7 @@ function writeSignedUsersSnapshot(users: SignedUser[]): void {
   }
 }
 
-export async function loadAdminPanelData(): Promise<AdminLoadResult> {
+async function loadAdminPanelData(): Promise<AdminLoadResult> {
   const [popularResponse, currencyResponse, adminsResponse, pushResponse] = await Promise.all([
     getAdminPopularDestinations(),
     getCurrencySettings(),
@@ -258,12 +260,12 @@ export async function loadAdminPanelData(): Promise<AdminLoadResult> {
   };
 }
 
-export async function loadPopularCodes(): Promise<string[]> {
+async function loadPopularCodes(): Promise<string[]> {
   const response = await getAdminPopularDestinations();
   return response.success && Array.isArray(response.data) ? response.data : [];
 }
 
-export async function loadCurrencyConfig(): Promise<AdminLoadResult["currency"]> {
+async function loadCurrencyConfig(): Promise<AdminLoadResult["currency"]> {
   const response = await getCurrencySettings();
   return {
     enableIQD: Boolean(response.data?.enableIQD),
@@ -272,7 +274,7 @@ export async function loadCurrencyConfig(): Promise<AdminLoadResult["currency"]>
   };
 }
 
-export async function loadAdminPhones(): Promise<string[]> {
+async function loadAdminPhones(): Promise<string[]> {
   const response = await getSuperAdmins();
   if (!response.success || !Array.isArray(response.data)) {
     return [];
@@ -280,7 +282,7 @@ export async function loadAdminPhones(): Promise<string[]> {
   return response.data.map((entry: any) => String(entry?.phone || "").trim()).filter(Boolean);
 }
 
-export async function loadPushNotificationSummary(): Promise<PushNotificationSummary> {
+async function loadPushNotificationSummary(): Promise<PushNotificationSummary> {
   const response = await getPushNotificationSummary();
   const rawError = String(response.error || "").trim();
   const normalizedError = /failed to fetch/i.test(rawError)
@@ -302,7 +304,7 @@ export async function loadPushNotificationSummary(): Promise<PushNotificationSum
   };
 }
 
-export async function sendAdminPushNotification(payload: {
+async function sendAdminPushNotification(payload: {
   title: string;
   body: string;
   route?: string;
@@ -313,7 +315,7 @@ export async function sendAdminPushNotification(payload: {
   return sendPushNotification({ ...payload, userIds: payload.userIds });
 }
 
-export async function sendAdminAppUpdatePushNotification(payload: {
+async function sendAdminAppUpdatePushNotification(payload: {
   title: string;
   body: string;
   appStoreUrl: string;
@@ -339,19 +341,19 @@ function invalidatePopularCaches(): void {
   window.dispatchEvent(new CustomEvent("tulip:popular-updated"));
 }
 
-export async function savePopularDestinations(codes: string[]) {
+async function savePopularDestinations(codes: string[]) {
   const result = await setAdminPopularDestinations(codes);
   if (result.success) invalidatePopularCaches();
   return result;
 }
 
-export async function clearPopularDestinations() {
+async function clearPopularDestinations() {
   const result = await clearAdminPopularDestinations();
   if (result.success) invalidatePopularCaches();
   return result;
 }
 
-export async function saveCurrencyConfig(payload: {
+async function saveCurrencyConfig(payload: {
   enableIQD: boolean;
   exchangeRate: string;
   markupPercent: string;
@@ -359,15 +361,15 @@ export async function saveCurrencyConfig(payload: {
   return updateCurrencySettings(payload);
 }
 
-export async function addAdminPhone(phone: string) {
+async function addAdminPhone(phone: string) {
   return addSuperAdmin(String(phone || "").trim(), "Admin User");
 }
 
-export async function removeAdminPhone(phone: string) {
+async function removeAdminPhone(phone: string) {
   return removeSuperAdmin(String(phone || "").trim());
 }
 
-export async function loadSignedUpUsers(): Promise<LoadedSignedUser[]> {
+async function loadSignedUpUsers(): Promise<LoadedSignedUser[]> {
   const response = await getUsers();
   if (!response.success) {
     throw new Error(response.error || "Failed to load signed users");
@@ -433,19 +435,19 @@ export async function loadSignedUpUsers(): Promise<LoadedSignedUser[]> {
     .filter((entry): entry is LoadedSignedUser => Boolean(entry && (entry.id || entry.phone || entry.name)));
 }
 
-export async function deleteSignedUser(userId: string) {
+async function deleteSignedUser(userId: string) {
   return deleteUserAccount(String(userId || "").trim());
 }
 
-export async function blockSignedUser(userId: string, blocked = true) {
+async function blockSignedUser(userId: string, blocked = true) {
   return blockUserAccount(String(userId || "").trim(), blocked);
 }
 
-export async function grantSignedUserLoyalty(userId: string, granted = true) {
+async function grantSignedUserLoyalty(userId: string, granted = true) {
   return grantUserLoyalty(String(userId || "").trim(), granted);
 }
 
-export async function editSignedUser(userId: string, payload: { name: string; phone: string }) {
+async function editSignedUser(userId: string, payload: { name: string; phone: string }) {
   return editUserAccount(String(userId || "").trim(), payload);
 }
 

@@ -486,7 +486,7 @@ export async function signupWithOtp(
   return completeAuthSession(response, { phone: normalizedPhone, name: normalizedName }, "Signup response");
 }
 
-export async function signupWithPassword(
+async function signupWithPassword(
   phone: string,
   name: string,
   password: string,
@@ -528,7 +528,7 @@ export async function loginWithOtp(
   return completeAuthSession(response, { phone: normalizedPhone }, "Login response");
 }
 
-export async function loginWithPassword(
+async function loginWithPassword(
   phone: string,
   password: string,
 ): Promise<ApiResponse<{ userId: string; phone: string; name: string }>> {

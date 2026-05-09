@@ -935,21 +935,6 @@ export async function deleteMyAccount(): Promise<ApiResponse<any>> {
   };
 }
 
-export async function updateMyProfileName(name: string): Promise<ApiResponse<{ name: string }>> {
-  const response = await updateMyProfile({ name });
-  if (!response.success || !response.data) {
-    return response as ApiResponse<{ name: string }>;
-  }
-
-  return {
-    success: true,
-    data: {
-      name: response.data.name,
-    },
-    statusCode: response.statusCode,
-  };
-}
-
 function mapProfileResponse(identity: AuthIdentity): {
   id: string;
   phone: string;

@@ -107,7 +107,7 @@ export function getApiBaseCandidates(): string[] {
   return candidates;
 }
 
-export function getPrimaryApiBaseUrl(): string {
+function getPrimaryApiBaseUrl(): string {
   return getApiBaseCandidates()[0] || DEFAULT_NATIVE_API_BASE;
 }
 
@@ -154,7 +154,7 @@ export function getNativePushUnavailableReason(): string {
   return "Push notifications are only available in the native iOS and Android apps.";
 }
 
-export function isNativePushConfigured(): boolean {
+function isNativePushConfigured(): boolean {
   try {
     const platform = Capacitor.getPlatform();
     if (platform === "ios") {

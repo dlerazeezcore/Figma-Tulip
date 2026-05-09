@@ -60,7 +60,7 @@ export interface CheckoutPageModel {
   navigateToPlans: () => void;
 }
 
-export function readCheckoutData(locationState: unknown): CheckoutData | null {
+function readCheckoutData(locationState: unknown): CheckoutData | null {
   if (locationState && typeof locationState === "object") {
     const data = locationState as CheckoutData;
     if (data?.country && data?.plan) {
@@ -80,7 +80,7 @@ export function readCheckoutData(locationState: unknown): CheckoutData | null {
   }
 }
 
-export function saveCheckoutData(data: CheckoutData): void {
+function saveCheckoutData(data: CheckoutData): void {
   try {
     sessionStorage.setItem("checkoutData", JSON.stringify(data));
   } catch {
@@ -88,11 +88,11 @@ export function saveCheckoutData(data: CheckoutData): void {
   }
 }
 
-export function isCheckoutAuthenticated(): boolean {
+function isCheckoutAuthenticated(): boolean {
   return isAuthenticated();
 }
 
-export async function calculateCheckoutTotals(planUsdPrice: number): Promise<CheckoutTotals> {
+async function calculateCheckoutTotals(planUsdPrice: number): Promise<CheckoutTotals> {
   const settingsResponse = await getCurrencySettings();
   const exchangeRate = String(settingsResponse.data?.exchangeRate || "1320");
   const markupPercent = String(settingsResponse.data?.markupPercent || "0");
