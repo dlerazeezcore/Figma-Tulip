@@ -12,6 +12,7 @@ import {
   saveMyEsimShadowFromPurchaseResult,
 } from "./esimaccesswiring";
 import { convertUsdToIqd } from "../utils/currency";
+import { formatDataAllowance } from "../utils/data-allowance";
 import { isNativeApp, openNativeBrowser } from "../utils/native-payment";
 
 export interface CheckoutData {
@@ -26,6 +27,7 @@ export interface CheckoutData {
     data: number;
     validity: number;
     price: number;
+    unlimited?: boolean;
   };
 }
 
@@ -268,8 +270,9 @@ export function useCheckoutPageModel(): CheckoutPageModel {
       saveMyEsimShadowFromPurchaseResult(result.data || {}, checkoutData || undefined);
       refreshProfilesAfterPurchase();
 
+      const dataDesc = checkoutData?.plan ? formatDataAllowance(checkoutData.plan.data, { unlimited: checkoutData.plan.unlimited }) : "your plan";
       toast.success("Purchase successful", {
-        description: `Your ${checkoutData?.plan.data || 0} GB eSIM for ${checkoutData?.country.name || "your destination"} is being activated.`,
+        description: `Your ${dataDesc} eSIM for ${checkoutData?.country.name || "your destination"} is being activated.`,
         duration: 3000,
       });
 

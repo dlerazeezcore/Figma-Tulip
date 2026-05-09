@@ -53,6 +53,7 @@ export interface CheckoutPayload {
     data: number;
     validity: number;
     price: number;
+    unlimited?: boolean;
   };
 }
 
@@ -485,6 +486,7 @@ function createCheckoutPayload(destination: PlansDestination, bundle: PlansBundl
       data: bundle.data,
       validity: bundle.validity,
       price: bundle.price,
+      unlimited: bundle.unlimited,
     },
   };
 }

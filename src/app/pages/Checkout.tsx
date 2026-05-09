@@ -4,6 +4,7 @@ import { Card } from "../components/ui/card";
 import { CountryFlag } from "../components/ui/country-flag";
 import { Switch } from "../components/ui/switch";
 import { formatIqd } from "../utils/currency";
+import { formatDataAllowance } from "../utils/data-allowance";
 import { useCheckoutPageModel } from "../wiring/checkout-page-service";
 import { useTranslation } from "react-i18next";
 
@@ -91,7 +92,7 @@ export function Checkout() {
             <div className="space-y-3 mb-6">
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-muted/50 rounded-lg">
                 <span className="text-gray-600 dark:text-muted-foreground">{t("Plan")}</span>
-                <span className="text-base font-medium dark:text-foreground">{plan.data} {t('GB')}</span>
+                <span className="text-base font-medium dark:text-foreground">{formatDataAllowance(plan.data, { unlimited: plan.unlimited })}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-muted/50 rounded-lg">
                 <span className="text-gray-600 dark:text-muted-foreground">{t("Type")}</span>
@@ -320,7 +321,9 @@ export function Checkout() {
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-muted/40 dark:to-muted/60 rounded-xl p-4 mb-4 border-2 border-purple-200 dark:border-purple-800">
                   <div className="flex items-center justify-between text-sm mb-3">
                     <span className="text-gray-600 dark:text-muted-foreground">{t("Plan")}</span>
-                    <span className="font-medium dark:text-foreground">{plan.data} {t('GB')} - {plan.validity} {t("days")}</span>
+                    <span className="font-medium dark:text-foreground">
+                      {formatDataAllowance(plan.data, { unlimited: plan.unlimited })} - {plan.validity} {t("days")}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-sm mb-3">
                     <span className="text-gray-600 dark:text-muted-foreground">{t("Country")}</span>
