@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { getCurrencySettings } from "./catalog-service";
 import { resolveCountryName } from "./country-names";
-import { useHomeTutorialModel, type HomeTutorialModel } from "./home-tutorial-service";
 import { getPopularDestinations, loadMyEsimsPageContent, type MyEsimItem } from "./esimaccesswiring";
 import { addAuthSessionChangeListener, getUserId, getUserName, isAuthenticated } from "./session";
 
@@ -47,7 +46,6 @@ export interface HomePageModel {
   markupPercent: string;
   dataPercentage: number;
   welcomeName: string;
-  tutorial: HomeTutorialModel;
   openDestinationPlans: (destination: HomeDestination) => void;
 }
 
@@ -294,7 +292,6 @@ export async function loadHomePageContent(): Promise<HomePageContent> {
 
 export function useHomePageModel(): HomePageModel {
   const navigate = useNavigate();
-  const tutorial = useHomeTutorialModel();
   const immediatePopularContent = getImmediateHomePopularContent();
   const immediateActiveEsim = readImmediateHomeActiveEsimFromSnapshot();
   const [popularDestinations, setPopularDestinations] = useState<HomeDestination[]>(
@@ -396,7 +393,6 @@ export function useHomePageModel(): HomePageModel {
     markupPercent,
     dataPercentage,
     welcomeName,
-    tutorial,
     openDestinationPlans: (destination) => navigate(buildPlansRouteFromDestination(destination)),
   };
 }

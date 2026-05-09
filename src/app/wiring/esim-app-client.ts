@@ -1429,8 +1429,6 @@ async function syncPushDeviceLegacy(payload: {
   locale?: string;
   appVersion?: string;
   notificationsEnabled?: boolean;
-  supportChatOpen?: boolean;
-  supportChatSeenAt?: string;
 }): Promise<ApiResponse> {
   const primary = await requestApi("/push/devices/sync", {
     method: "POST",
@@ -2877,137 +2875,6 @@ export function updateCurrencySettings(payload: {
   });
 }
 
-const WHITELIST_SETTINGS_PATHS = [
-  "/admin/whitelist-settings",
-  "/admin/settings/whitelist",
-  "/admin/whitelist-countries",
-  "/admin/whitelist",
-] as const;
-
-function normalizeWhitelistCodes(value: unknown): string[] {
-  const fromList = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-    ? value.split(",")
-    : [];
-
-  const seen = new Set<string>();
-  const normalized: string[] = [];
-
-  fromList.forEach((entry) => {
-    const code = toString(entry).toUpperCase();
-    if (!code || seen.has(code)) {
-      return;
-    }
-    seen.add(code);
-    normalized.push(code);
-  });
-
-  return normalized;
-}
-
-function normalizeWhitelistSettingsPayload(raw: unknown): { enabled: boolean; codes: string[] } {
-  const data = raw && typeof raw === "object" ? raw as AnyRecord : {};
-  const candidateCodes =
-    data?.codes ??
-    data?.countryCodes ??
-    data?.country_codes ??
-    data?.allowedCountries ??
-    data?.allowed_countries ??
-    data?.whitelistCodes ??
-    data?.whitelist_codes ??
-    data?.customFields?.codes ??
-    data?.custom_fields?.codes ??
-    [];
-  const codes = normalizeWhitelistCodes(candidateCodes);
-  const enabled = parseBoolean(
-    data?.enabled ??
-      data?.isEnabled ??
-      data?.is_enabled ??
-      data?.whitelistEnabled ??
-      data?.whitelist_enabled ??
-      (codes.length > 0),
-  );
-
-  return { enabled, codes };
-}
-
-export function getWhitelistSettings(): Promise<ApiResponse> {
-  if (!isBackendCapabilityEnabled("whitelistSettings")) {
-    return Promise.resolve(unsupported("Whitelist settings"));
-  }
-  return (async () => {
-    let lastFailure: ApiResponse | null = null;
-
-    for (const path of WHITELIST_SETTINGS_PATHS) {
-      const response = await requestApi(path);
-      if (response.success) {
-        const data = unwrapApiData(response) ?? response.data ?? {};
-        return {
-          success: true,
-          data: normalizeWhitelistSettingsPayload(data),
-        } as ApiResponse;
-      }
-
-      if (isMissingRouteError(response)) {
-        lastFailure = response;
-        continue;
-      }
-      return response;
-    }
-
-    return lastFailure || unsupported("Whitelist settings");
-  })();
-}
-
-export function updateWhitelistSettings(payload: {
-  enabled: boolean;
-  codes: string[];
-}): Promise<ApiResponse> {
-  if (!isBackendCapabilityEnabled("whitelistSettings")) {
-    return Promise.resolve(unsupported("Whitelist settings"));
-  }
-  return (async () => {
-    const codes = normalizeWhitelistCodes(payload?.codes || []);
-    const enabled = Boolean(payload?.enabled);
-    const body = {
-      enabled,
-      isEnabled: enabled,
-      codes,
-      countryCodes: codes,
-      whitelistCodes: codes,
-      customFields: {
-        enabled,
-        codes,
-      },
-    };
-
-    let lastFailure: ApiResponse | null = null;
-
-    for (const path of WHITELIST_SETTINGS_PATHS) {
-      const response = await requestApi(path, {
-        method: "POST",
-        body,
-      });
-      if (response.success) {
-        const data = unwrapApiData(response) ?? response.data ?? body;
-        return {
-          success: true,
-          data: normalizeWhitelistSettingsPayload(data),
-        } as ApiResponse;
-      }
-
-      if (isMissingRouteError(response)) {
-        lastFailure = response;
-        continue;
-      }
-      return response;
-    }
-
-    return lastFailure || unsupported("Whitelist settings");
-  })();
-}
-
 export function syncPushDevice(payload: {
   installId: string;
   token?: string;
@@ -3046,8 +2913,6 @@ export function syncPushDevice(payload: {
       locale: toString(payload?.locale) || undefined,
       appVersion: toString(payload?.appVersion) || undefined,
       notificationsEnabled: notificationsEnabled,
-      supportChatOpen: Boolean((payload as any)?.supportChatOpen),
-      supportChatSeenAt: toString((payload as any)?.supportChatSeenAt) || undefined,
     };
 
     if (!notificationsEnabled || !token) {

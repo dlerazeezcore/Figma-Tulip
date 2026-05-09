@@ -98,7 +98,7 @@ export function Settings() {
             <SettingsItem
               icon={<Shield className="w-5 h-5 text-red-600" />}
               label="Admin Panel"
-              subtitle="Manage app configuration"
+              subtitle="Open the admin panel"
               onClick={() => navigate("/admin-web")}
               iconBg="bg-red-50"
             />

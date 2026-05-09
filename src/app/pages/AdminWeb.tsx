@@ -48,9 +48,7 @@ import {
   BellRing,
   Globe,
   DollarSign,
-  Filter,
   Shield,
-  PlayCircle,
   Send,
   UserPlus,
   Users,
@@ -77,7 +75,7 @@ const SUPPORTS_BLOCK_USER_ACTION = true;
 const SUPPORTS_EDIT_USER_ACTION = false;
 const UNSUPPORTED_USER_ACTION_MESSAGE = "This action is not available yet.";
 
-type Section = "destinations" | "currency" | "tutorial" | "push" | "whitelist" | "admins" | "users" | "reference";
+type Section = "destinations" | "currency" | "push" | "admins" | "users" | "reference";
 
 export function AdminWeb() {
   const navigate = useNavigate();
@@ -108,27 +106,9 @@ export function AdminWeb() {
     exchangeRate,
     markupPercent,
     currencyLoading,
-    whitelistEnabled,
-    whitelistCodes,
-    currentWhitelist,
-    whitelistLoading,
     newAdminPhone,
     currentAdmins,
     adminLoading,
-    tutorialEnabled,
-    tutorialCardTitle,
-    tutorialCardSubtitle,
-    tutorialModalTitle,
-    tutorialIphoneVideoUrl,
-    tutorialIphoneThumbnailUrl,
-    tutorialIphoneDescription,
-    tutorialIphoneDurationLabel,
-    tutorialAndroidVideoUrl,
-    tutorialAndroidThumbnailUrl,
-    tutorialAndroidDescription,
-    tutorialAndroidDurationLabel,
-    tutorialLoading,
-    tutorialUploadLoadingPlatform,
     pushSummary,
     pushSummaryLoading,
     pushSending,
@@ -162,21 +142,7 @@ export function AdminWeb() {
     setEnableIQD,
     setExchangeRate,
     setMarkupPercent,
-    setWhitelistEnabled,
-    setWhitelistCodes,
     setNewAdminPhone,
-    setTutorialEnabled,
-    setTutorialCardTitle,
-    setTutorialCardSubtitle,
-    setTutorialModalTitle,
-    setTutorialIphoneVideoUrl,
-    setTutorialIphoneThumbnailUrl,
-    setTutorialIphoneDescription,
-    setTutorialIphoneDurationLabel,
-    setTutorialAndroidVideoUrl,
-    setTutorialAndroidThumbnailUrl,
-    setTutorialAndroidDescription,
-    setTutorialAndroidDurationLabel,
     setPushTitle,
     setPushBody,
     setPushRoute,
@@ -198,13 +164,8 @@ export function AdminWeb() {
     handleSave,
     handleClear,
     handleSaveCurrencySettings,
-    handleSaveWhitelistSettings,
-    handleClearWhitelistSettings,
     handleAddSuperAdmin,
     handleRemoveSuperAdmin,
-    handleSaveTutorialSettings,
-    handleUploadTutorialVideo,
-    handleUploadTutorialThumbnail,
     handleSendPushNotification,
     handleSendAppUpdatePushNotification,
     handleToggleSignedUsers,
@@ -220,9 +181,7 @@ export function AdminWeb() {
   const sections = [
     { id: "destinations" as Section, icon: Globe, label: "Popular Destinations", description: "Manage countries on landing", color: "text-blue-600", bg: "bg-blue-50" },
     { id: "currency" as Section, icon: DollarSign, label: "Currency Settings", description: "Exchange rates & markups", color: "text-green-600", bg: "bg-green-50" },
-    { id: "tutorial" as Section, icon: PlayCircle, label: "Home Tutorial Video", description: "Configure home video player", color: "text-purple-600", bg: "bg-purple-50" },
     { id: "push" as Section, icon: BellRing, label: "Push Notifications", description: "Broadcast alerts to users", color: "text-orange-600", bg: "bg-orange-50" },
-    { id: "whitelist" as Section, icon: Filter, label: "Whitelist Settings", description: "Control access by code", color: "text-indigo-600", bg: "bg-indigo-50" },
     { id: "admins" as Section, icon: Shield, label: "Super Admin Settings", description: "Manage admin permissions", color: "text-red-600", bg: "bg-red-50" },
     { id: "users" as Section, icon: Users, label: "Signed Users", description: "User accounts & loyalty", color: "text-teal-600", bg: "bg-teal-50" },
     { id: "reference" as Section, icon: Globe, label: "Country Codes Reference", description: "ISO code list", color: "text-gray-600", bg: "bg-gray-50" },
@@ -357,7 +316,9 @@ export function AdminWeb() {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-foreground">
                 {sections.find((s) => s.id === activeSection)?.label || "Select Section"}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-muted-foreground hidden sm:block">Manage app configuration and settings</p>
+              <p className="text-sm text-gray-500 dark:text-muted-foreground hidden sm:block">
+                {sections.find((s) => s.id === activeSection)?.description || ""}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -435,40 +396,6 @@ export function AdminWeb() {
               />
             )}
 
-            {activeSection === "tutorial" && (
-              <HomeTutorialSection
-                tutorialEnabled={tutorialEnabled}
-                tutorialCardTitle={tutorialCardTitle}
-                tutorialCardSubtitle={tutorialCardSubtitle}
-                tutorialModalTitle={tutorialModalTitle}
-                tutorialIphoneVideoUrl={tutorialIphoneVideoUrl}
-                tutorialIphoneThumbnailUrl={tutorialIphoneThumbnailUrl}
-                tutorialIphoneDescription={tutorialIphoneDescription}
-                tutorialIphoneDurationLabel={tutorialIphoneDurationLabel}
-                tutorialAndroidVideoUrl={tutorialAndroidVideoUrl}
-                tutorialAndroidThumbnailUrl={tutorialAndroidThumbnailUrl}
-                tutorialAndroidDescription={tutorialAndroidDescription}
-                tutorialAndroidDurationLabel={tutorialAndroidDurationLabel}
-                tutorialLoading={tutorialLoading}
-                tutorialUploadLoadingPlatform={tutorialUploadLoadingPlatform}
-                setTutorialEnabled={setTutorialEnabled}
-                setTutorialCardTitle={setTutorialCardTitle}
-                setTutorialCardSubtitle={setTutorialCardSubtitle}
-                setTutorialModalTitle={setTutorialModalTitle}
-                setTutorialIphoneVideoUrl={setTutorialIphoneVideoUrl}
-                setTutorialIphoneThumbnailUrl={setTutorialIphoneThumbnailUrl}
-                setTutorialIphoneDescription={setTutorialIphoneDescription}
-                setTutorialIphoneDurationLabel={setTutorialIphoneDurationLabel}
-                setTutorialAndroidVideoUrl={setTutorialAndroidVideoUrl}
-                setTutorialAndroidThumbnailUrl={setTutorialAndroidThumbnailUrl}
-                setTutorialAndroidDescription={setTutorialAndroidDescription}
-                setTutorialAndroidDurationLabel={setTutorialAndroidDurationLabel}
-                handleSaveTutorialSettings={handleSaveTutorialSettings}
-                handleUploadTutorialVideo={handleUploadTutorialVideo}
-                handleUploadTutorialThumbnail={handleUploadTutorialThumbnail}
-              />
-            )}
-
             {activeSection === "push" && (
               <PushNotificationsSection
                 pushSummary={pushSummary}
@@ -503,19 +430,6 @@ export function AdminWeb() {
                 setAppUpdatePlayStoreUrl={setAppUpdatePlayStoreUrl}
                 handleSendPushNotification={handleSendPushNotification}
                 handleSendAppUpdatePushNotification={handleSendAppUpdatePushNotification}
-              />
-            )}
-
-            {activeSection === "whitelist" && (
-              <WhitelistSettingsSection
-                whitelistEnabled={whitelistEnabled}
-                whitelistCodes={whitelistCodes}
-                currentWhitelist={currentWhitelist}
-                whitelistLoading={whitelistLoading}
-                setWhitelistEnabled={setWhitelistEnabled}
-                setWhitelistCodes={setWhitelistCodes}
-                handleSaveWhitelistSettings={handleSaveWhitelistSettings}
-                handleClearWhitelistSettings={handleClearWhitelistSettings}
               />
             )}
 
@@ -862,360 +776,6 @@ function CurrencySettingsSection({
   );
 }
 
-function HomeTutorialSection(props: any) {
-  const {
-    tutorialEnabled,
-    tutorialCardTitle,
-    tutorialCardSubtitle,
-    tutorialModalTitle,
-    tutorialIphoneVideoUrl,
-    tutorialIphoneThumbnailUrl,
-    tutorialIphoneDescription,
-    tutorialIphoneDurationLabel,
-    tutorialAndroidVideoUrl,
-    tutorialAndroidThumbnailUrl,
-    tutorialAndroidDescription,
-    tutorialAndroidDurationLabel,
-    tutorialLoading,
-    tutorialUploadLoadingPlatform,
-    setTutorialEnabled,
-    setTutorialCardTitle,
-    setTutorialCardSubtitle,
-    setTutorialModalTitle,
-    setTutorialIphoneVideoUrl,
-    setTutorialIphoneThumbnailUrl,
-    setTutorialIphoneDescription,
-    setTutorialIphoneDurationLabel,
-    setTutorialAndroidVideoUrl,
-    setTutorialAndroidThumbnailUrl,
-    setTutorialAndroidDescription,
-    setTutorialAndroidDurationLabel,
-    handleSaveTutorialSettings,
-    handleUploadTutorialVideo,
-    handleUploadTutorialThumbnail,
-  } = props;
-
-  return (
-    <Card className="p-8 shadow-sm border-gray-200 dark:border-border dark:bg-card">
-      {/* Current Configuration */}
-      <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-foreground mb-4">Current Configuration</h3>
-        {tutorialLoading ? (
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading...
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="px-3 py-1.5 bg-blue-50 dark:bg-muted text-primary dark:text-blue-400 border-0">
-              Visible on Home: {tutorialEnabled ? "Yes" : "No"}
-            </Badge>
-            <Badge variant="secondary" className="px-3 py-1.5 bg-blue-50 dark:bg-muted text-primary dark:text-blue-400 border-0">
-              iPhone Video: {tutorialIphoneVideoUrl ? "Configured" : "Missing"}
-            </Badge>
-            <Badge variant="secondary" className="px-3 py-1.5 bg-blue-50 dark:bg-muted text-primary dark:text-blue-400 border-0">
-              Android Video: {tutorialAndroidVideoUrl ? "Configured" : "Missing"}
-            </Badge>
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-gray-200 dark:border-border pt-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <Checkbox
-            id="home-tutorial-enabled"
-            checked={tutorialEnabled}
-            onCheckedChange={(checked) => setTutorialEnabled(Boolean(checked))}
-          />
-          <Label htmlFor="home-tutorial-enabled" className="text-sm font-medium text-gray-900 dark:text-foreground cursor-pointer">
-            Show tutorial section on Home page
-          </Label>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <Label htmlFor="tutorial-card-title" className="text-sm font-medium text-gray-900 dark:text-foreground">
-              Card Title
-            </Label>
-            <Input
-              id="tutorial-card-title"
-              value={tutorialCardTitle}
-              onChange={(e) => setTutorialCardTitle(e.target.value)}
-              className="mt-2"
-              placeholder="How to activate and use your eSIM"
-            />
-          </div>
-          <div>
-            <Label htmlFor="tutorial-modal-title" className="text-sm font-medium text-gray-900 dark:text-foreground">
-              Modal Title
-            </Label>
-            <Input
-              id="tutorial-modal-title"
-              value={tutorialModalTitle}
-              onChange={(e) => setTutorialModalTitle(e.target.value)}
-              className="mt-2"
-              placeholder="eSIM Activation Tutorial"
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="tutorial-card-subtitle" className="text-sm font-medium text-gray-900 dark:text-foreground">
-            Card Subtitle
-          </Label>
-          <Input
-            id="tutorial-card-subtitle"
-            value={tutorialCardSubtitle}
-            onChange={(e) => setTutorialCardSubtitle(e.target.value)}
-            className="mt-2"
-            placeholder="Separate tutorials for iPhone and Android"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-          {/* iPhone Tutorial */}
-          <div className="space-y-4 rounded-xl border border-gray-200 dark:border-border p-6 bg-gray-50/50 dark:bg-muted/30">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-foreground flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/20 flex items-center justify-center">
-                <PlayCircle className="w-4 h-4 text-primary" />
-              </div>
-              iPhone Tutorial
-            </h4>
-            <div>
-              <Label htmlFor="tutorial-iphone-video-url" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Video URL
-              </Label>
-              <Input
-                id="tutorial-iphone-video-url"
-                type="url"
-                value={tutorialIphoneVideoUrl}
-                onChange={(e) => setTutorialIphoneVideoUrl(e.target.value)}
-                className="mt-2"
-                placeholder="https://.../iphone-tutorial.mp4"
-              />
-              <div className="mt-3">
-                <Input
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    void handleUploadTutorialVideo("iphone", file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-                <p className="mt-2 text-xs text-gray-500 dark:text-muted-foreground">
-                  {tutorialUploadLoadingPlatform === "iphone-video"
-                    ? "Uploading iPhone video..."
-                    : "Upload a video file here and the admin backend will store it automatically"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="tutorial-iphone-thumbnail-url" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Thumbnail URL
-              </Label>
-              <Input
-                id="tutorial-iphone-thumbnail-url"
-                type="url"
-                value={tutorialIphoneThumbnailUrl}
-                onChange={(e) => setTutorialIphoneThumbnailUrl(e.target.value)}
-                className="mt-2"
-                placeholder="https://.../iphone-thumbnail.jpg"
-              />
-              <div className="mt-3">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    void handleUploadTutorialThumbnail("iphone", file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-                <p className="mt-2 text-xs text-gray-500 dark:text-muted-foreground">
-                  {tutorialUploadLoadingPlatform === "iphone-thumbnail"
-                    ? "Uploading iPhone thumbnail..."
-                    : "Optional image upload for the tutorial cover"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="tutorial-iphone-duration" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Duration Label
-              </Label>
-              <Input
-                id="tutorial-iphone-duration"
-                value={tutorialIphoneDurationLabel}
-                onChange={(e) => setTutorialIphoneDurationLabel(e.target.value)}
-                className="mt-2"
-                placeholder="3:42"
-              />
-            </div>
-            <div>
-              <Label htmlFor="tutorial-iphone-description" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Description
-              </Label>
-              <Textarea
-                id="tutorial-iphone-description"
-                value={tutorialIphoneDescription}
-                onChange={(e) => setTutorialIphoneDescription(e.target.value)}
-                className="mt-2 min-h-24"
-                placeholder="Step-by-step guide for iPhone users"
-              />
-            </div>
-          </div>
-
-          {/* Android Tutorial */}
-          <div className="space-y-4 rounded-xl border border-gray-200 dark:border-border p-6 bg-gray-50/50 dark:bg-muted/30">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-foreground flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/40 dark:to-green-800/20 flex items-center justify-center">
-                <PlayCircle className="w-4 h-4 text-green-600" />
-              </div>
-              Android Tutorial
-            </h4>
-            <div>
-              <Label htmlFor="tutorial-android-video-url" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Video URL
-              </Label>
-              <Input
-                id="tutorial-android-video-url"
-                type="url"
-                value={tutorialAndroidVideoUrl}
-                onChange={(e) => setTutorialAndroidVideoUrl(e.target.value)}
-                className="mt-2"
-                placeholder="https://.../android-tutorial.mp4"
-              />
-              <div className="mt-3">
-                <Input
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    void handleUploadTutorialVideo("android", file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-                <p className="mt-2 text-xs text-gray-500 dark:text-muted-foreground">
-                  {tutorialUploadLoadingPlatform === "android-video"
-                    ? "Uploading Android video..."
-                    : "Upload a video file here and the admin backend will store it automatically"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="tutorial-android-thumbnail-url" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Thumbnail URL
-              </Label>
-              <Input
-                id="tutorial-android-thumbnail-url"
-                type="url"
-                value={tutorialAndroidThumbnailUrl}
-                onChange={(e) => setTutorialAndroidThumbnailUrl(e.target.value)}
-                className="mt-2"
-                placeholder="https://.../android-thumbnail.jpg"
-              />
-              <div className="mt-3">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    void handleUploadTutorialThumbnail("android", file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-                <p className="mt-2 text-xs text-gray-500 dark:text-muted-foreground">
-                  {tutorialUploadLoadingPlatform === "android-thumbnail"
-                    ? "Uploading Android thumbnail..."
-                    : "Optional image upload for the tutorial cover"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="tutorial-android-duration" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Duration Label
-              </Label>
-              <Input
-                id="tutorial-android-duration"
-                value={tutorialAndroidDurationLabel}
-                onChange={(e) => setTutorialAndroidDurationLabel(e.target.value)}
-                className="mt-2"
-                placeholder="3:42"
-              />
-            </div>
-            <div>
-              <Label htmlFor="tutorial-android-description" className="text-sm font-medium text-gray-900 dark:text-foreground">
-                Description
-              </Label>
-              <Textarea
-                id="tutorial-android-description"
-                value={tutorialAndroidDescription}
-                onChange={(e) => setTutorialAndroidDescription(e.target.value)}
-                className="mt-2 min-h-24"
-                placeholder="Step-by-step guide for Android users"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-6 border-t border-gray-200 dark:border-border">
-          <Button
-            onClick={handleSaveTutorialSettings}
-            disabled={tutorialLoading}
-            className="gap-2 bg-gradient-to-r from-primary to-blue-600 dark:from-blue-600 dark:to-primary hover:from-primary-hover hover:to-blue-700"
-          >
-            {tutorialLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                Save Tutorial Settings
-              </>
-            )}
-          </Button>
-        </div>
-
-        <div className="pt-6 border-t border-gray-200 dark:border-border">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-foreground mb-3">How it works:</h4>
-          <ul className="text-sm text-gray-600 dark:text-muted-foreground space-y-2">
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Upload tutorial files directly from this Admin panel</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Add separate video URLs for iPhone and Android tutorials</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Uploading a file here automatically fills the matching URL field</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>The backend stores the file and returns the final URL automatically</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Thumbnail URLs are used on the Home card and inside the player poster</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>If the section is disabled or no video is configured, it stays hidden on Home</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Direct `.mp4` links work best for in-app playback</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 function PushNotificationsSection(props: any) {
   const {
     pushSummary,
@@ -1242,7 +802,6 @@ function PushNotificationsSection(props: any) {
     setPushAudience,
     setPushKind,
     setPushTargetMode,
-    setTutorialEnabled,
     setPushTargetUserSearch,
     togglePushTargetUser,
     setAppUpdateTitle,
@@ -1689,135 +1248,6 @@ function PushNotificationsSection(props: any) {
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
               <span>Tap behavior is controlled by the route you send with the notification</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function WhitelistSettingsSection(props: any) {
-  const {
-    whitelistEnabled,
-    whitelistCodes,
-    currentWhitelist,
-    whitelistLoading,
-    setWhitelistEnabled,
-    setWhitelistCodes,
-    handleSaveWhitelistSettings,
-    handleClearWhitelistSettings,
-  } = props;
-
-  return (
-    <Card className="p-8 shadow-sm border-gray-200 dark:border-border dark:bg-card">
-      {/* Current Configuration */}
-      <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-foreground mb-4">Current Configuration</h3>
-        {whitelistLoading ? (
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading...
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="px-3 py-1.5 bg-blue-50 dark:bg-muted text-primary dark:text-blue-400 border-0">
-              Whitelist Enabled: {whitelistEnabled ? "Yes" : "No"}
-            </Badge>
-            {currentWhitelist.length > 0 ? (
-              currentWhitelist.map((code: string) => (
-                <Badge
-                  key={code}
-                  variant="secondary"
-                  className="px-3 py-1.5 bg-blue-50 dark:bg-muted text-primary dark:text-blue-400 border-0"
-                >
-                  {code}
-                </Badge>
-              ))
-            ) : (
-              <Badge variant="secondary" className="px-3 py-1.5 bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground border-0">
-                No codes in whitelist
-              </Badge>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-gray-200 dark:border-border pt-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <Checkbox
-            id="enable-whitelist"
-            checked={whitelistEnabled}
-            onCheckedChange={(checked) => setWhitelistEnabled(Boolean(checked))}
-          />
-          <Label htmlFor="enable-whitelist" className="text-sm font-medium text-gray-900 dark:text-foreground cursor-pointer">
-            Enable Country Whitelist
-          </Label>
-        </div>
-
-        <div>
-          <Label htmlFor="whitelist-codes" className="text-sm font-medium text-gray-900 dark:text-foreground">
-            Country Codes (comma-separated)
-          </Label>
-          <Input
-            id="whitelist-codes"
-            placeholder="US, GB, DE, FR, IT, ES, IQ..."
-            value={whitelistCodes}
-            onChange={(e) => setWhitelistCodes(e.target.value)}
-            className="mt-2"
-          />
-          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-2">
-            Enter 2-letter ISO country codes separated by commas (e.g., US, GB, IQ, DE, FR)
-          </p>
-        </div>
-
-        <div className="flex gap-3">
-          <Button
-            onClick={handleSaveWhitelistSettings}
-            disabled={whitelistLoading || !whitelistCodes.trim()}
-            className="gap-2 bg-gradient-to-r from-primary to-blue-600 dark:from-blue-600 dark:to-primary hover:from-primary-hover hover:to-blue-700 shadow-md"
-          >
-            {whitelistLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                Save Whitelist Settings
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={handleClearWhitelistSettings}
-            disabled={whitelistLoading || currentWhitelist.length === 0}
-            variant="outline"
-            className="gap-2 shadow-sm"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear All
-          </Button>
-        </div>
-
-        <div className="pt-6 border-t border-gray-200 dark:border-border">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-foreground mb-3">How it works:</h4>
-          <ul className="text-sm text-gray-600 dark:text-muted-foreground space-y-2">
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Enable whitelist to show ONLY the selected countries in Plans page</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>When disabled, all countries from the API will be shown</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Whitelist applies to both Country and Regional tabs</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span>Changes take effect immediately across the app</span>
             </li>
           </ul>
         </div>

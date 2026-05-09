@@ -4,11 +4,12 @@
   import App from "./app/App.tsx";
   import "./styles/index.css";
 
-  // One-shot cleanup of localStorage keys from the removed Telegram-bridged
-  // support chat. Safe to call on every boot: the marker stops it after the
-  // first successful sweep on a given device.
-  function purgeRemovedSupportChatStorage(): void {
-    const MARKER = "support.cleanup.v1";
+  // One-shot cleanup of localStorage keys from features we removed:
+  // the Telegram-bridged support chat and the Home Tutorial Video.
+  // Safe to call on every boot: the marker stops it after the first
+  // successful sweep on a given device.
+  function purgeRemovedFeatureStorage(): void {
+    const MARKER = "removed-features.cleanup.v2";
     try {
       if (localStorage.getItem(MARKER) === "1") return;
       const keysToRemove: string[] = [];
@@ -20,7 +21,12 @@
           key === "supportUploadBucketHint" ||
           key === "supportUploadOriginHint" ||
           key === "supportUploadBucketHintV2" ||
-          key === "supportUploadOriginHintV2"
+          key === "supportUploadOriginHintV2" ||
+          key === "home-tutorial.settings" ||
+          key === "home-tutorial.settings.cached" ||
+          key === "settings.whitelist" ||
+          // Drop the older v1 marker so we know we ran the v2 sweep.
+          key === "support.cleanup.v1"
         ) {
           keysToRemove.push(key);
         }
@@ -33,7 +39,7 @@
       // localStorage may be unavailable (private mode, quota); skip silently.
     }
   }
-  purgeRemovedSupportChatStorage();
+  purgeRemovedFeatureStorage();
 
   createRoot(document.getElementById("root")!).render(<App />);
   

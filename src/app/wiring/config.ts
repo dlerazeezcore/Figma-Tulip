@@ -8,8 +8,6 @@ const BACKEND_CAPABILITIES = {
   supportChat: true,
   pushNotifications: true,
   currencySettings: true,
-  whitelistSettings: true,
-  homeTutorial: false,
   fibPayments: true,
 } as const;
 

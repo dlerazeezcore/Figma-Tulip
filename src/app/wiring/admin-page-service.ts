@@ -13,16 +13,11 @@ import {
   getCurrencySettings,
   getPushNotificationSummary,
   getSuperAdmins,
-  getWhitelistSettings,
   removeSuperAdmin,
   sendAppUpdatePushNotification as sendAppUpdatePush,
   sendPushNotification,
   setAdminPopularDestinations,
-  getHomeTutorialSettings,
   updateCurrencySettings,
-  updateHomeTutorialSettings,
-  uploadHomeTutorialAsset,
-  updateWhitelistSettings,
 } from "./admin-config-service";
 
 export interface AdminLoadResult {
@@ -32,25 +27,7 @@ export interface AdminLoadResult {
     exchangeRate: string;
     markupPercent: string;
   };
-  whitelist: {
-    enabled: boolean;
-    codes: string[];
-  };
   admins: string[];
-  tutorial: {
-    enabled: boolean;
-    cardTitle: string;
-    cardSubtitle: string;
-    modalTitle: string;
-    iphoneVideoUrl: string;
-    iphoneThumbnailUrl: string;
-    iphoneDescription: string;
-    iphoneDurationLabel: string;
-    androidVideoUrl: string;
-    androidThumbnailUrl: string;
-    androidDescription: string;
-    androidDurationLabel: string;
-  };
   push: PushNotificationSummary;
 }
 
@@ -102,27 +79,9 @@ export interface AdminPageModel {
   exchangeRate: string;
   markupPercent: string;
   currencyLoading: boolean;
-  whitelistEnabled: boolean;
-  whitelistCodes: string;
-  currentWhitelist: string[];
-  whitelistLoading: boolean;
   newAdminPhone: string;
   currentAdmins: string[];
   adminLoading: boolean;
-  tutorialEnabled: boolean;
-  tutorialCardTitle: string;
-  tutorialCardSubtitle: string;
-  tutorialModalTitle: string;
-  tutorialIphoneVideoUrl: string;
-  tutorialIphoneThumbnailUrl: string;
-  tutorialIphoneDescription: string;
-  tutorialIphoneDurationLabel: string;
-  tutorialAndroidVideoUrl: string;
-  tutorialAndroidThumbnailUrl: string;
-  tutorialAndroidDescription: string;
-  tutorialAndroidDurationLabel: string;
-  tutorialLoading: boolean;
-  tutorialUploadLoadingPlatform: "" | "iphone-video" | "android-video" | "iphone-thumbnail" | "android-thumbnail";
   pushSummary: PushNotificationSummary;
   pushSummaryLoading: boolean;
   pushSending: boolean;
@@ -159,21 +118,7 @@ export interface AdminPageModel {
   setEnableIQD: (value: boolean) => void;
   setExchangeRate: (value: string) => void;
   setMarkupPercent: (value: string) => void;
-  setWhitelistEnabled: (value: boolean) => void;
-  setWhitelistCodes: (value: string) => void;
   setNewAdminPhone: (value: string) => void;
-  setTutorialEnabled: (value: boolean) => void;
-  setTutorialCardTitle: (value: string) => void;
-  setTutorialCardSubtitle: (value: string) => void;
-  setTutorialModalTitle: (value: string) => void;
-  setTutorialIphoneVideoUrl: (value: string) => void;
-  setTutorialIphoneThumbnailUrl: (value: string) => void;
-  setTutorialIphoneDescription: (value: string) => void;
-  setTutorialIphoneDurationLabel: (value: string) => void;
-  setTutorialAndroidVideoUrl: (value: string) => void;
-  setTutorialAndroidThumbnailUrl: (value: string) => void;
-  setTutorialAndroidDescription: (value: string) => void;
-  setTutorialAndroidDurationLabel: (value: string) => void;
   setPushTitle: (value: string) => void;
   setPushBody: (value: string) => void;
   setPushRoute: (value: string) => void;
@@ -192,13 +137,8 @@ export interface AdminPageModel {
   handleSave: () => Promise<void>;
   handleClear: () => Promise<void>;
   handleSaveCurrencySettings: () => Promise<void>;
-  handleSaveWhitelistSettings: () => Promise<void>;
-  handleClearWhitelistSettings: () => Promise<void>;
   handleAddSuperAdmin: () => Promise<void>;
   handleRemoveSuperAdmin: (phone: string) => Promise<void>;
-  handleSaveTutorialSettings: () => Promise<void>;
-  handleUploadTutorialVideo: (platform: "iphone" | "android", file: File | null) => Promise<void>;
-  handleUploadTutorialThumbnail: (platform: "iphone" | "android", file: File | null) => Promise<void>;
   handleSendPushNotification: () => Promise<void>;
   handleSendAppUpdatePushNotification: () => Promise<void>;
   handleToggleSignedUsers: () => Promise<void>;
@@ -283,12 +223,10 @@ function writeSignedUsersSnapshot(users: SignedUser[]): void {
 }
 
 export async function loadAdminPanelData(): Promise<AdminLoadResult> {
-  const [popularResponse, currencyResponse, whitelistResponse, adminsResponse, tutorialResponse, pushResponse] = await Promise.all([
+  const [popularResponse, currencyResponse, adminsResponse, pushResponse] = await Promise.all([
     getAdminPopularDestinations(),
     getCurrencySettings(),
-    getWhitelistSettings(),
     getSuperAdmins(),
-    getHomeTutorialSettings(),
     getPushNotificationSummary(),
   ]);
 
@@ -299,28 +237,10 @@ export async function loadAdminPanelData(): Promise<AdminLoadResult> {
       exchangeRate: String(currencyResponse.data?.exchangeRate || "1320"),
       markupPercent: String(currencyResponse.data?.markupPercent || "0"),
     },
-    whitelist: {
-      enabled: Boolean(whitelistResponse.data?.enabled),
-      codes: Array.isArray(whitelistResponse.data?.codes) ? whitelistResponse.data.codes : [],
-    },
     admins:
       adminsResponse.success && Array.isArray(adminsResponse.data)
         ? adminsResponse.data.map((entry: any) => String(entry?.phone || "").trim()).filter(Boolean)
         : [],
-    tutorial: {
-      enabled: Boolean(tutorialResponse.enabled),
-      cardTitle: String(tutorialResponse.cardTitle || ""),
-      cardSubtitle: String(tutorialResponse.cardSubtitle || ""),
-      modalTitle: String(tutorialResponse.modalTitle || ""),
-      iphoneVideoUrl: String(tutorialResponse.iphone?.videoUrl || ""),
-      iphoneThumbnailUrl: String(tutorialResponse.iphone?.thumbnailUrl || ""),
-      iphoneDescription: String(tutorialResponse.iphone?.description || ""),
-      iphoneDurationLabel: String(tutorialResponse.iphone?.durationLabel || ""),
-      androidVideoUrl: String(tutorialResponse.android?.videoUrl || ""),
-      androidThumbnailUrl: String(tutorialResponse.android?.thumbnailUrl || ""),
-      androidDescription: String(tutorialResponse.android?.description || ""),
-      androidDurationLabel: String(tutorialResponse.android?.durationLabel || ""),
-    },
     push: {
       available: Boolean(pushResponse.success),
       error: String(pushResponse.error || ""),
@@ -349,14 +269,6 @@ export async function loadCurrencyConfig(): Promise<AdminLoadResult["currency"]>
     enableIQD: Boolean(response.data?.enableIQD),
     exchangeRate: String(response.data?.exchangeRate || "1320"),
     markupPercent: String(response.data?.markupPercent || "0"),
-  };
-}
-
-export async function loadWhitelistConfig(): Promise<AdminLoadResult["whitelist"]> {
-  const response = await getWhitelistSettings();
-  return {
-    enabled: Boolean(response.data?.enabled),
-    codes: Array.isArray(response.data?.codes) ? response.data.codes : [],
   };
 }
 
@@ -419,24 +331,6 @@ export async function sendAdminAppUpdatePushNotification(payload: {
   });
 }
 
-export async function loadHomeTutorialConfig(): Promise<AdminLoadResult["tutorial"]> {
-  const response = await getHomeTutorialSettings();
-  return {
-    enabled: Boolean(response.enabled),
-    cardTitle: String(response.cardTitle || ""),
-    cardSubtitle: String(response.cardSubtitle || ""),
-    modalTitle: String(response.modalTitle || ""),
-    iphoneVideoUrl: String(response.iphone?.videoUrl || ""),
-    iphoneThumbnailUrl: String(response.iphone?.thumbnailUrl || ""),
-    iphoneDescription: String(response.iphone?.description || ""),
-    iphoneDurationLabel: String(response.iphone?.durationLabel || ""),
-    androidVideoUrl: String(response.android?.videoUrl || ""),
-    androidThumbnailUrl: String(response.android?.thumbnailUrl || ""),
-    androidDescription: String(response.android?.description || ""),
-    androidDurationLabel: String(response.android?.durationLabel || ""),
-  };
-}
-
 function invalidatePopularCaches(): void {
   try {
     localStorage.removeItem("home.popular.content.v1");
@@ -465,37 +359,12 @@ export async function saveCurrencyConfig(payload: {
   return updateCurrencySettings(payload);
 }
 
-export async function saveWhitelistConfig(payload: { enabled: boolean; codes: string[] }) {
-  return updateWhitelistSettings(payload);
-}
-
 export async function addAdminPhone(phone: string) {
   return addSuperAdmin(String(phone || "").trim(), "Admin User");
 }
 
 export async function removeAdminPhone(phone: string) {
   return removeSuperAdmin(String(phone || "").trim());
-}
-
-export async function saveHomeTutorialConfig(payload: AdminLoadResult["tutorial"]) {
-  return updateHomeTutorialSettings({
-    enabled: Boolean(payload.enabled),
-    cardTitle: String(payload.cardTitle || ""),
-    cardSubtitle: String(payload.cardSubtitle || ""),
-    modalTitle: String(payload.modalTitle || ""),
-    iphone: {
-      videoUrl: String(payload.iphoneVideoUrl || ""),
-      thumbnailUrl: String(payload.iphoneThumbnailUrl || ""),
-      description: String(payload.iphoneDescription || ""),
-      durationLabel: String(payload.iphoneDurationLabel || ""),
-    },
-    android: {
-      videoUrl: String(payload.androidVideoUrl || ""),
-      thumbnailUrl: String(payload.androidThumbnailUrl || ""),
-      description: String(payload.androidDescription || ""),
-      durationLabel: String(payload.androidDurationLabel || ""),
-    },
-  });
 }
 
 export async function loadSignedUpUsers(): Promise<LoadedSignedUser[]> {
@@ -594,29 +463,9 @@ export function useAdminPageModel(): AdminPageModel {
   const [exchangeRate, setExchangeRate] = useState("1320");
   const [markupPercent, setMarkupPercent] = useState("0");
   const [currencyLoading, setCurrencyLoading] = useState(false);
-  const [whitelistEnabled, setWhitelistEnabled] = useState(false);
-  const [whitelistCodes, setWhitelistCodes] = useState("");
-  const [currentWhitelist, setCurrentWhitelist] = useState<string[]>([]);
-  const [whitelistLoading, setWhitelistLoading] = useState(false);
   const [newAdminPhone, setNewAdminPhone] = useState("");
   const [currentAdmins, setCurrentAdmins] = useState<string[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
-  const [tutorialEnabled, setTutorialEnabled] = useState(false);
-  const [tutorialCardTitle, setTutorialCardTitle] = useState("");
-  const [tutorialCardSubtitle, setTutorialCardSubtitle] = useState("");
-  const [tutorialModalTitle, setTutorialModalTitle] = useState("");
-  const [tutorialIphoneVideoUrl, setTutorialIphoneVideoUrl] = useState("");
-  const [tutorialIphoneThumbnailUrl, setTutorialIphoneThumbnailUrl] = useState("");
-  const [tutorialIphoneDescription, setTutorialIphoneDescription] = useState("");
-  const [tutorialIphoneDurationLabel, setTutorialIphoneDurationLabel] = useState("");
-  const [tutorialAndroidVideoUrl, setTutorialAndroidVideoUrl] = useState("");
-  const [tutorialAndroidThumbnailUrl, setTutorialAndroidThumbnailUrl] = useState("");
-  const [tutorialAndroidDescription, setTutorialAndroidDescription] = useState("");
-  const [tutorialAndroidDurationLabel, setTutorialAndroidDurationLabel] = useState("");
-  const [tutorialLoading, setTutorialLoading] = useState(false);
-  const [tutorialUploadLoadingPlatform, setTutorialUploadLoadingPlatform] = useState<
-    "" | "iphone-video" | "android-video" | "iphone-thumbnail" | "android-thumbnail"
-  >("");
   const [pushSummary, setPushSummary] = useState<PushNotificationSummary>({
     available: true,
     error: "",
@@ -664,9 +513,7 @@ export function useAdminPageModel(): AdminPageModel {
     const loadInitialAdminData = async () => {
       setLoadingCurrent(true);
       setCurrencyLoading(true);
-      setWhitelistLoading(true);
       setAdminLoading(true);
-      setTutorialLoading(true);
       setPushSummaryLoading(true);
       try {
         const data = await loadAdminPanelData();
@@ -674,29 +521,12 @@ export function useAdminPageModel(): AdminPageModel {
         setEnableIQD(data.currency.enableIQD);
         setExchangeRate(data.currency.exchangeRate);
         setMarkupPercent(data.currency.markupPercent);
-        setWhitelistEnabled(data.whitelist.enabled);
-        setWhitelistCodes((data.whitelist.codes || []).join(", "));
-        setCurrentWhitelist(data.whitelist.codes || []);
         setCurrentAdmins(data.admins || []);
-        setTutorialEnabled(data.tutorial.enabled);
-        setTutorialCardTitle(data.tutorial.cardTitle);
-        setTutorialCardSubtitle(data.tutorial.cardSubtitle);
-        setTutorialModalTitle(data.tutorial.modalTitle);
-        setTutorialIphoneVideoUrl(data.tutorial.iphoneVideoUrl);
-        setTutorialIphoneThumbnailUrl(data.tutorial.iphoneThumbnailUrl);
-        setTutorialIphoneDescription(data.tutorial.iphoneDescription);
-        setTutorialIphoneDurationLabel(data.tutorial.iphoneDurationLabel);
-        setTutorialAndroidVideoUrl(data.tutorial.androidVideoUrl);
-        setTutorialAndroidThumbnailUrl(data.tutorial.androidThumbnailUrl);
-        setTutorialAndroidDescription(data.tutorial.androidDescription);
-        setTutorialAndroidDurationLabel(data.tutorial.androidDurationLabel);
         setPushSummary(data.push);
       } finally {
         setLoadingCurrent(false);
         setCurrencyLoading(false);
-        setWhitelistLoading(false);
         setAdminLoading(false);
-        setTutorialLoading(false);
         setPushSummaryLoading(false);
       }
     };
@@ -721,15 +551,6 @@ export function useAdminPageModel(): AdminPageModel {
     const destinations = await loadPopularCodes();
     setCurrentDestinations(destinations);
     setLoadingCurrent(false);
-  };
-
-  const loadWhitelistSettings = async () => {
-    setWhitelistLoading(true);
-    const whitelist = await loadWhitelistConfig();
-    setWhitelistEnabled(whitelist.enabled);
-    setWhitelistCodes((whitelist.codes || []).join(", "));
-    setCurrentWhitelist(whitelist.codes || []);
-    setWhitelistLoading(false);
   };
 
   const loadSuperAdmins = async () => {
@@ -758,27 +579,9 @@ export function useAdminPageModel(): AdminPageModel {
     exchangeRate,
     markupPercent,
     currencyLoading,
-    whitelistEnabled,
-    whitelistCodes,
-    currentWhitelist,
-    whitelistLoading,
     newAdminPhone,
     currentAdmins,
     adminLoading,
-    tutorialEnabled,
-    tutorialCardTitle,
-    tutorialCardSubtitle,
-    tutorialModalTitle,
-    tutorialIphoneVideoUrl,
-    tutorialIphoneThumbnailUrl,
-    tutorialIphoneDescription,
-    tutorialIphoneDurationLabel,
-    tutorialAndroidVideoUrl,
-    tutorialAndroidThumbnailUrl,
-    tutorialAndroidDescription,
-    tutorialAndroidDurationLabel,
-    tutorialLoading,
-    tutorialUploadLoadingPlatform,
     pushSummary,
     pushSummaryLoading,
     pushSending,
@@ -808,21 +611,7 @@ export function useAdminPageModel(): AdminPageModel {
     setEnableIQD,
     setExchangeRate,
     setMarkupPercent,
-    setWhitelistEnabled,
-    setWhitelistCodes,
     setNewAdminPhone,
-    setTutorialEnabled,
-    setTutorialCardTitle,
-    setTutorialCardSubtitle,
-    setTutorialModalTitle,
-    setTutorialIphoneVideoUrl,
-    setTutorialIphoneThumbnailUrl,
-    setTutorialIphoneDescription,
-    setTutorialIphoneDurationLabel,
-    setTutorialAndroidVideoUrl,
-    setTutorialAndroidThumbnailUrl,
-    setTutorialAndroidDescription,
-    setTutorialAndroidDurationLabel,
     setPushTitle,
     setPushBody,
     setPushRoute,
@@ -900,50 +689,6 @@ export function useAdminPageModel(): AdminPageModel {
       }
       setCurrencyLoading(false);
     },
-    handleSaveWhitelistSettings: async () => {
-      setWhitelistLoading(true);
-      try {
-        const codes = parseIsoCodeList(whitelistCodes);
-        if (whitelistEnabled && codes.length === 0) {
-          toast.error("Please enter at least one valid country code");
-          return;
-        }
-
-        const response = await saveWhitelistConfig({
-          enabled: whitelistEnabled,
-          codes: whitelistEnabled ? codes : [],
-        });
-
-        if (response.success) {
-          toast.success("Whitelist settings updated");
-          setWhitelistCodes("");
-          await loadWhitelistSettings();
-        } else {
-          toast.error(response.error || "Failed to update whitelist settings");
-        }
-      } catch (error) {
-        console.error("Error updating whitelist settings:", error);
-        toast.error(`Failed to update: ${error instanceof Error ? error.message : "Unknown error"}`);
-      } finally {
-        setWhitelistLoading(false);
-      }
-    },
-    handleClearWhitelistSettings: async () => {
-      setWhitelistLoading(true);
-      const response = await saveWhitelistConfig({
-        enabled: false,
-        codes: [],
-      });
-
-      if (response.success) {
-        toast.success("Whitelist settings cleared");
-        setWhitelistCodes("");
-        await loadWhitelistSettings();
-      } else {
-        toast.error(response.error || "Failed to clear whitelist settings");
-      }
-      setWhitelistLoading(false);
-    },
     handleAddSuperAdmin: async () => {
       setAdminLoading(true);
       const response = await addAdminPhone(newAdminPhone);
@@ -966,100 +711,6 @@ export function useAdminPageModel(): AdminPageModel {
         toast.error(response.error || "Failed to remove super admin");
       }
       setAdminLoading(false);
-    },
-    handleSaveTutorialSettings: async () => {
-      setTutorialLoading(true);
-      try {
-        const response = await saveHomeTutorialConfig({
-          enabled: tutorialEnabled,
-          cardTitle: tutorialCardTitle,
-          cardSubtitle: tutorialCardSubtitle,
-          modalTitle: tutorialModalTitle,
-          iphoneVideoUrl: tutorialIphoneVideoUrl,
-          iphoneThumbnailUrl: tutorialIphoneThumbnailUrl,
-          iphoneDescription: tutorialIphoneDescription,
-          iphoneDurationLabel: tutorialIphoneDurationLabel,
-          androidVideoUrl: tutorialAndroidVideoUrl,
-          androidThumbnailUrl: tutorialAndroidThumbnailUrl,
-          androidDescription: tutorialAndroidDescription,
-          androidDurationLabel: tutorialAndroidDurationLabel,
-        });
-
-        setTutorialEnabled(response.enabled);
-        setTutorialCardTitle(response.cardTitle);
-        setTutorialCardSubtitle(response.cardSubtitle);
-        setTutorialModalTitle(response.modalTitle);
-        setTutorialIphoneVideoUrl(response.iphone.videoUrl);
-        setTutorialIphoneThumbnailUrl(response.iphone.thumbnailUrl);
-        setTutorialIphoneDescription(response.iphone.description);
-        setTutorialIphoneDurationLabel(response.iphone.durationLabel);
-        setTutorialAndroidVideoUrl(response.android.videoUrl);
-        setTutorialAndroidThumbnailUrl(response.android.thumbnailUrl);
-        setTutorialAndroidDescription(response.android.description);
-        setTutorialAndroidDurationLabel(response.android.durationLabel);
-        toast.success("Home tutorial settings updated");
-      } catch (error) {
-        console.error("Error updating home tutorial settings:", error);
-        toast.error(`Failed to update: ${error instanceof Error ? error.message : "Unknown error"}`);
-      } finally {
-        setTutorialLoading(false);
-      }
-    },
-    handleUploadTutorialVideo: async (platform, file) => {
-      if (!file) {
-        return;
-      }
-
-      const loadingKey = platform === "iphone" ? "iphone-video" : "android-video";
-      setTutorialUploadLoadingPlatform(loadingKey);
-
-      try {
-        const uploaded = await uploadHomeTutorialAsset({
-          platform,
-          assetType: "video",
-          file,
-        });
-
-        if (platform === "iphone") {
-          setTutorialIphoneVideoUrl(uploaded.url);
-        } else {
-          setTutorialAndroidVideoUrl(uploaded.url);
-        }
-
-        toast.success(`${platform === "iphone" ? "iPhone" : "Android"} video uploaded`);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to upload video");
-      } finally {
-        setTutorialUploadLoadingPlatform("");
-      }
-    },
-    handleUploadTutorialThumbnail: async (platform, file) => {
-      if (!file) {
-        return;
-      }
-
-      const loadingKey = platform === "iphone" ? "iphone-thumbnail" : "android-thumbnail";
-      setTutorialUploadLoadingPlatform(loadingKey);
-
-      try {
-        const uploaded = await uploadHomeTutorialAsset({
-          platform,
-          assetType: "thumbnail",
-          file,
-        });
-
-        if (platform === "iphone") {
-          setTutorialIphoneThumbnailUrl(uploaded.url);
-        } else {
-          setTutorialAndroidThumbnailUrl(uploaded.url);
-        }
-
-        toast.success(`${platform === "iphone" ? "iPhone" : "Android"} thumbnail uploaded`);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to upload thumbnail");
-      } finally {
-        setTutorialUploadLoadingPlatform("");
-      }
     },
     handleSendPushNotification: async () => {
       const title = pushTitle.trim();

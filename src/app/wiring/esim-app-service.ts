@@ -21,7 +21,6 @@ const POPULAR_DESTINATIONS_CACHE_KEY = "catalog.popular-destinations";
 const ALL_DESTINATIONS_CACHE_KEY = "catalog.all-destinations";
 const CURRENCY_SETTINGS_CACHE_KEY = "settings.currency";
 const CURRENCY_SETTINGS_SNAPSHOT_KEY = "settings.currency.snapshot.v1";
-const WHITELIST_SETTINGS_CACHE_KEY = "settings.whitelist";
 const SUPER_ADMINS_CACHE_KEY = "admin.super-admins";
 const PENDING_ORDER_STORAGE_KEY = "pendingOrderData";
 const MY_ESIMS_SHADOW_ROWS_KEY_PREFIX = "esim.myEsims.shadowRows.v1.";
@@ -1528,48 +1527,6 @@ export async function updateCurrencySettings(settings: AnyRecord): Promise<ApiRe
   const refreshed = await getCurrencySettings();
   dispatchCurrencyUpdatedEvent();
   return refreshed;
-}
-
-export async function getWhitelistSettings(): Promise<ApiResponse<any>> {
-  return getCachedResource(WHITELIST_SETTINGS_CACHE_KEY, SETTINGS_CACHE_TTL_MS, async () => {
-    const response = await client.getWhitelistSettings();
-    if (!response.success) {
-      return {
-        success: true,
-        data: {
-          enabled: false,
-          codes: [],
-        },
-      };
-    }
-
-    const data = extractApiData<any>(response) || {};
-    return {
-      success: true,
-      data: {
-        enabled: Boolean(data?.enabled),
-        codes: Array.isArray(data?.codes)
-          ? data.codes.map((code: any) => String(code).trim().toUpperCase()).filter(Boolean)
-          : [],
-      },
-    };
-  });
-}
-
-export async function updateWhitelistSettings(settings: AnyRecord): Promise<ApiResponse<any>> {
-  const response = await client.updateWhitelistSettings({
-    enabled: Boolean(settings?.enabled),
-    codes: Array.isArray(settings?.codes)
-      ? settings.codes.map((code: any) => String(code).trim().toUpperCase()).filter(Boolean)
-      : [],
-  });
-
-  if (!response.success) {
-    return response;
-  }
-
-  invalidateCachedResource(WHITELIST_SETTINGS_CACHE_KEY);
-  return getWhitelistSettings();
 }
 
 export async function getPushNotificationSummary(): Promise<ApiResponse<any>> {
