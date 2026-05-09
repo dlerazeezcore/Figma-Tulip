@@ -36,11 +36,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
+          cache: pnpm
 
       - name: Show Xcode and SDK versions
         run: |
@@ -50,12 +55,12 @@ jobs:
       - name: Install dependencies
         run: |
           for i in 1 2 3; do
-            npm ci && break
+            pnpm install --frozen-lockfile && break
             if [ "$i" -eq 3 ]; then
-              echo "npm ci failed after 3 attempts"
+              echo "pnpm install failed after 3 attempts"
               exit 1
             fi
-            echo "npm ci failed (attempt $i), retrying in 15s..."
+            echo "pnpm install failed (attempt $i), retrying in 15s..."
             sleep 15
           done
 
