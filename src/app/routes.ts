@@ -34,7 +34,6 @@ export const router = createBrowserRouter([
         path: "settings/personal-information",
         lazy: lazyComponent(() => import("./pages/PersonalInformation"), "PersonalInformation"),
       },
-      { path: "support", lazy: lazyComponent(() => import("./pages/Support"), "Support") },
       { path: "coming-soon", lazy: lazyComponent(() => import("./pages/ComingSoon"), "ComingSoon") },
       { path: "feedback-system", lazy: lazyComponent(() => import("./pages/FeedbackSystem"), "FeedbackSystem") },
       { path: "admin", lazy: lazyComponent(() => import("./components/AdminRoute"), "AdminRoute") },

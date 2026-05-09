@@ -41,14 +41,6 @@ export function formatShortDate(value: string): string {
   });
 }
 
-export function formatSupportTime(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date);
-}
-
 export function getMyEsimStatusVariant(
   status: MyEsimItem["status"],
 ): "default" | "secondary" | "destructive" {

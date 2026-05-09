@@ -47,7 +47,7 @@ export function Settings() {
     openSignup,
     openPersonalInformation,
     openOrderHistory,
-    openSupportChat,
+    openWhatsAppSupport,
     logout,
     handleAuthSuccess,
   } = useSettingsPageModel();
@@ -229,11 +229,11 @@ export function Settings() {
         </div>
         <div className="rounded-2xl bg-white dark:bg-card shadow-sm border border-gray-100 dark:border-border overflow-hidden">
           <SettingsItem
-            icon={<MessageCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
-            label={t("Chat with Support")}
-            subtitle={t("Get help from our team")}
-            onClick={openSupportChat}
-            iconBg="bg-indigo-50 dark:bg-indigo-900/20"
+            icon={<MessageCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+            label={t("Chat on WhatsApp")}
+            subtitle={t("Message us at +964 750 720 1111")}
+            onClick={openWhatsAppSupport}
+            iconBg="bg-emerald-50 dark:bg-emerald-900/20"
           />
         </div>
       </section>

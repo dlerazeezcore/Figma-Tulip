@@ -253,13 +253,6 @@ async function createDefaultChannels(): Promise<void> {
       visibility: 1,
     }),
     PushNotifications.createChannel({
-      id: "support",
-      name: "Support",
-      description: "Replies from support and urgent account help",
-      importance: 4,
-      visibility: 1,
-    }),
-    PushNotifications.createChannel({
       id: "general",
       name: "General",
       description: "General app notifications",
@@ -360,17 +353,6 @@ function handleNotificationAction(action: ActionPerformed): void {
       void openExternalNotificationUrl(targetUrl);
       return;
     }
-  }
-
-  if (notificationType === "support_reply") {
-    if (typeof window !== "undefined") {
-      const target = "/support";
-      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      if (current !== target) {
-        window.location.assign(target);
-      }
-    }
-    return;
   }
 
   const route = normalizeRoute(

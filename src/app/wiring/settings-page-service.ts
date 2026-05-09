@@ -34,7 +34,7 @@ export interface SettingsPageModel extends SettingsPreferences {
   openSignup: () => void;
   openPersonalInformation: () => void;
   openOrderHistory: () => void;
-  openSupportChat: () => void;
+  openWhatsAppSupport: () => void;
   logout: () => void;
   handleAuthSuccess: () => void;
 }
@@ -176,14 +176,16 @@ export function useSettingsPageModel(): SettingsPageModel {
     },
     openPersonalInformation: () => navigate("/settings/personal-information"),
     openOrderHistory: () => navigate("/my-esims"),
-    openSupportChat: () => {
-      if (!isAuthenticated()) {
-        setAuthMode("login");
-        setShowAuthModal(true);
-        toast.info("Log in to chat with support");
-        return;
+    openWhatsAppSupport: () => {
+      // Universal wa.me deeplink: opens the WhatsApp app on mobile (native or
+      // PWA) and falls back to web.whatsapp.com on desktop. The phone number
+      // must be in international format with no '+' or punctuation.
+      const url = "https://wa.me/9647507201111";
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch {
+        window.location.href = url;
       }
-      navigate("/support");
     },
     logout: () => {
       clearAuth();
