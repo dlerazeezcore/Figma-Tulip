@@ -1,2 +1,8 @@
 packages:
   - '.'
+# Approve native-binary postinstall scripts for the build toolchain.
+# pnpm 11+ gates these by default; CI fails without this whitelist.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  sharp: true
