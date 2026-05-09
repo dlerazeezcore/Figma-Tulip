@@ -86,4 +86,8 @@ Always follow these structure constraints and conventions for this codebase.
    - src/imports/Tulipbooking-logo-full.svg
    It looks orphan to a TS-only grep but is consumed by scripts/generate-icons.mjs (line 5: SVG_SOURCE) to generate every iOS and Android app-icon variant.
 6. The Telegram support chat, the Home Tutorial Video admin panel, and the Whitelist Settings admin panel were all intentionally removed. Do not re-add admin UI sections, services, or backend client functions for any of them. The in-app support entry point is now a WhatsApp deeplink to +9647507201111 (already wired in Settings.tsx).
-7. iOS version bumping rules for App Store uploads: Apple requires CFBundleShortVersionString (MARKETING_VERSION in project.pbxproj) to increase on EVERY new App Store submission. Bump it (e.g. 1.1.1 → 1.1.2) before each upload, and also bump CURRENT_PROJECT_VERSION (build number) at the same time.
+7. iOS version is set in `ios/App/App.xcodeproj/project.pbxproj` in TWO places (Debug and Release configs). MARKETING_VERSION and CURRENT_PROJECT_VERSION must NEVER be DECREASED. App Store Connect closes a marketing version's "train" once a build of that version is approved, and Apple permanently rejects any subsequent upload with the same or lower number.
+   Concretely:
+   - Treat the current values in main as the floor; only increase them.
+   - If you regenerate project.pbxproj from scratch (e.g. via a Capacitor template), preserve the existing version.
+   - When you intentionally bump for a new release, increment MARKETING_VERSION (e.g. 1.1.1 → 1.1.2) AND CURRENT_PROJECT_VERSION (e.g. 3 → 4) together.
