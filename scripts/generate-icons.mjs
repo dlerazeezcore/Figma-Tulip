@@ -69,6 +69,22 @@ async function generate() {
     { name: 'xxxhdpi', size: 192 },
   ];
 
+  // Defensive: prune stale assets that AI Studio's binary
+  // mangling may have left behind. ldpi is obsolete; the
+  // background PNG is now an XML drawable (see
+  // mipmap-anydpi-v26/ic_launcher.xml).
+  const ldpiDir = 'android/app/src/main/res/mipmap-ldpi';
+  if (fs.existsSync(ldpiDir)) {
+    fs.rmSync(ldpiDir, { recursive: true, force: true });
+  }
+  for (const density of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+    const stale = path.join(
+      `android/app/src/main/res/mipmap-${density}`,
+      'ic_launcher_background.png',
+    );
+    if (fs.existsSync(stale)) fs.unlinkSync(stale);
+  }
+
   for (const map of androidMipmaps) {
     const dir = `android/app/src/main/res/mipmap-${map.name}`;
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
