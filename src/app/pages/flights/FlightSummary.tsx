@@ -177,7 +177,7 @@ export function FlightSummary() {
       </main>
 
       {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-card/80 backdrop-blur-md border-t border-gray-100 dark:border-border z-30">
+      <div className="fixed bottom-0 left-0 right-0 p-4 safe-area-bottom-tight bg-white/80 dark:bg-card/80 backdrop-blur-md border-t border-gray-100 dark:border-border z-30">
         <div className="max-w-md mx-auto">
           <div className="flex justify-between items-end mb-3 px-2">
             <div className="text-start">

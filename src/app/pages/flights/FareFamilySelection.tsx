@@ -205,7 +205,7 @@ export function FareFamilySelection() {
       </main>
 
       {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-card/80 backdrop-blur-md border-t border-gray-100 dark:border-border z-30">
+      <div className="fixed bottom-0 left-0 right-0 p-4 safe-area-bottom-tight bg-white/80 dark:bg-card/80 backdrop-blur-md border-t border-gray-100 dark:border-border z-30">
         <div className="max-w-md mx-auto">
           <button 
             disabled={!selectedFareId}

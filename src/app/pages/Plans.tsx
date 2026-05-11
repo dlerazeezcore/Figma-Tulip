@@ -240,7 +240,7 @@ export function Plans() {
           - NO TRANSPARENCY: Content behind will not show through
           ============================================
         */}
-        <div className="fixed bottom-20 left-0 right-0 bg-white dark:bg-card border-t border-gray-200 dark:border-border shadow-2xl pointer-events-none z-40 backdrop-blur-none">
+        <div className="sticky bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-gray-200 dark:border-border shadow-2xl pointer-events-none z-40 backdrop-blur-none mt-4">
           {/* Safe area spacer for iOS/Android bottom insets */}
           <div className="px-6 pt-4 pb-6 bg-white dark:bg-card">
             <Button
